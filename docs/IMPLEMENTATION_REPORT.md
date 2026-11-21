@@ -6,6 +6,7 @@
 - Account registration/login with salted PBKDF2 password hashes and opaque bearer sessions.
 - Owner-scoped monitor create/list/detail/update/delete, manual check, history, incidents, acknowledgement, and resolution endpoints.
 - Dashboard monitor detail view with recent check history, failure details, and an inline response-time trend chart.
+- Dashboard status cards, monitor search/filter, pause/resume/delete actions, incident acknowledgement/resolution, readable validation errors, and explicit DOM lookups for form fields.
 - SQLite persistence, a one-process periodic scheduler, per-monitor overlap prevention, bounded request timeout, disabled redirects, and no response-body persistence.
 - DNS/IP checks block non-global destinations before monitor creation and before each request. Incidents open after two consecutive availability failures and resolve after a successful check.
 - Docker app/Prometheus/Grafana setup, an example metrics dashboard and datasource provisioning, environment template, backlog, and this report.

@@ -5,11 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SentinelAPI</title>
   <style>
-    :root{color-scheme:dark}body{font:16px system-ui;background:#0b1220;color:#e5edf8;max-width:1150px;margin:38px auto;padding:0 20px}
+    :root{color-scheme:dark}*{box-sizing:border-box}body{font:16px system-ui;background:#0b1220;color:#e5edf8;max-width:1180px;margin:38px auto;padding:0 20px}
     input,button{padding:10px 12px;margin:4px;border-radius:8px;border:1px solid #334155;background:#111c30;color:inherit}button{background:#2563eb;border-color:#2563eb;cursor:pointer}button:hover{background:#1d4ed8}
-    section{background:#111c30;padding:18px;border-radius:12px;margin:14px 0}table{width:100%;border-collapse:collapse;min-width:720px}td,th{text-align:left;padding:10px;border-bottom:1px solid #334155;vertical-align:top}th{color:#9aabc2;font-weight:500}
+    section{background:#111c30;padding:18px;border-radius:12px;margin:14px 0}.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px}.toolbar h2{margin:8px 0}.cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.card{background:#111c30;border:1px solid #26364c;padding:16px;border-radius:12px}.card span{color:#9aabc2;font-size:13px}.card strong{display:block;font-size:26px;margin-top:6px}table{width:100%;border-collapse:collapse;min-width:720px}td,th{text-align:left;padding:10px;border-bottom:1px solid #334155;vertical-align:top}th{color:#9aabc2;font-weight:500}
     .muted,small{color:#9aabc2}.link{padding:2px 0;border:0;background:none;color:#93c5fd;text-align:left}.badge{display:inline-block;border-radius:99px;background:#26364c;padding:3px 9px;font-size:12px}.badge.up{background:#064e3b;color:#a7f3d0}.badge.degraded{background:#713f12;color:#fde68a}.badge.down,.badge.error,.badge.timeout{background:#7f1d1d;color:#fecaca}
-    .summary{display:flex;gap:28px;flex-wrap:wrap;padding:10px 0}.summary span{color:#9aabc2}.summary strong{display:block;color:#e5edf8;font-size:20px}.chart{background:#0b1220;border-radius:10px;padding:10px;overflow:hidden}.chart svg{width:100%;height:auto;max-height:190px}.scroll{overflow-x:auto}#msg{margin-left:8px}.form-error{color:#fecaca;background:#451a1a;border:1px solid #7f1d1d;border-radius:8px;padding:10px}.muted code{color:#bfdbfe}
+    .summary{display:flex;gap:28px;flex-wrap:wrap;padding:10px 0}.summary span{color:#9aabc2}.summary strong{display:block;color:#e5edf8;font-size:20px}.chart{background:#0b1220;border-radius:10px;padding:10px;overflow:hidden}.chart svg{width:100%;height:auto;max-height:190px}.scroll{overflow-x:auto}#msg{margin-left:8px}.form-error{color:#fecaca;background:#451a1a;border:1px solid #7f1d1d;border-radius:8px;padding:10px;white-space:pre-line}.muted code{color:#bfdbfe}.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.filters input{flex:1;min-width:210px}.filters select{padding:10px;border-radius:8px;background:#111c30;color:inherit;border:1px solid #334155}.secondary{background:#26364c;border-color:#40516b}.success{color:#a7f3d0}.empty{padding:20px;text-align:center;color:#9aabc2}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}button:disabled{opacity:.6;cursor:wait}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #93c5fd;outline-offset:2px}
+    @media(max-width:760px){body{margin:18px auto;padding:0 12px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.toolbar{align-items:flex-start}.toolbar h2{font-size:20px}}
   </style>
 </head>
 <body>
@@ -17,26 +18,31 @@
   <p class="muted">API availability monitoring</p>
   <section>
     <h2>Sign in / Register</h2>
-    <input id="email" placeholder="Email" autocomplete="email">
+    <input id="email" type="email" placeholder="Email" autocomplete="email">
     <input id="password" type="password" placeholder="Password" autocomplete="current-password">
-    <button onclick="auth('login')">Sign in</button>
-    <button onclick="auth('register')">Create account</button>
+    <button id="login-button" onclick="auth('login')">Sign in</button>
+    <button class="secondary" id="register-button" onclick="auth('register')">Create account</button>
     <span id="msg" role="status"></span>
   </section>
   <section id="main" hidden>
-    <h2>Add monitor</h2>
-    <input id="name" placeholder="Name">
-    <input id="url" type="url" placeholder="https://example.org/" autocomplete="url">
-    <button onclick="add()">Add monitor</button>
+    <div class="toolbar"><h2>Monitor overview</h2><div><button class="secondary" onclick="load()">Refresh</button><button class="secondary" onclick="logout()">Sign out</button></div></div>
+    <div class="cards" aria-live="polite"><div class="card"><span>Total monitors</span><strong id="stat-total">0</strong></div><div class="card"><span>Up</span><strong id="stat-up">0</strong></div><div class="card"><span>Degraded</span><strong id="stat-degraded">0</strong></div><div class="card"><span>Down</span><strong id="stat-down">0</strong></div><div class="card"><span>Open incidents</span><strong id="stat-incidents">0</strong></div></div>
+    <h2>Add a monitor</h2>
+    <input id="monitor-name" placeholder="Monitor name" autocomplete="off">
+    <input id="monitor-url" type="url" placeholder="https://example.org/" autocomplete="url">
+    <button id="add-button" onclick="add()">Add monitor</button>
     <p id="create-error" class="form-error" role="alert" hidden></p>
     <p class="muted">Use a full public HTTP(S) address, for example <code>https://example.org/</code>. Do not include login credentials. Local, private, and metadata addresses are blocked.</p>
-    <h2>Monitors</h2>
+    <div class="toolbar"><h2>Monitors</h2><div class="filters"><input id="monitor-search" type="search" placeholder="Search by name or URL" oninput="renderMonitors()"><select id="status-filter" onchange="renderMonitors()"><option value="ALL">All statuses</option><option>UNKNOWN</option><option>UP</option><option>DEGRADED</option><option>DOWN</option><option>TIMEOUT</option><option>ERROR</option><option>PAUSED</option></select></div></div>
     <div class="scroll"><table><thead><tr><th>Name</th><th>Endpoint</th><th>Status</th><th>Latency</th><th>Actions</th></tr></thead><tbody id="rows"></tbody></table></div>
     <h2>Incidents</h2><div id="incidents"></div>
     <section id="detail" hidden aria-live="polite"></section>
   </section>
   <script>
-    let token = localStorage.token;
+    let token = localStorage.getItem('token');
+    let monitorCache = [];
+    let busyChecks = new Set();
+    const byId = id => document.getElementById(id);
     const req = async (path, method, data) => {
       const response = await fetch('/api/v1' + path, {
         method: method || 'GET',
@@ -60,16 +66,19 @@
     const date = value => value ? new Date(value).toLocaleString() : '—';
 
     async function auth(mode) {
+      const loginButton = byId('login-button'), registerButton = byId('register-button');
+      loginButton.disabled = true; registerButton.disabled = true; byId('msg').textContent = 'Signing in…';
       try {
-        if (mode === 'register') await req('/auth/register', 'POST', {email: email.value, password: password.value});
-        const result = await req('/auth/login', 'POST', {email: email.value, password: password.value});
-        token = result.access_token; localStorage.token = token; main.hidden = false; msg.textContent = 'Signed in'; await load();
-      } catch (error) { msg.textContent = error.message; }
+        if (mode === 'register') await req('/auth/register', 'POST', {email: byId('email').value.trim(), password: byId('password').value});
+        const result = await req('/auth/login', 'POST', {email: byId('email').value.trim(), password: byId('password').value});
+        token = result.access_token; localStorage.setItem('token', token); byId('main').hidden = false; byId('msg').textContent = 'Signed in'; await load();
+      } catch (error) { byId('msg').textContent = error.message; }
+      finally { loginButton.disabled = false; registerButton.disabled = false; }
     }
     async function add() {
-      const errorBox = document.getElementById('create-error');
-      errorBox.hidden = true; errorBox.textContent = '';
-      const monitorName = name.value.trim(), target = url.value.trim();
+      const errorBox = byId('create-error'), addButton = byId('add-button');
+      errorBox.hidden = true; errorBox.textContent = ''; errorBox.className = 'form-error'; errorBox.setAttribute('role', 'alert');
+      const monitorName = byId('monitor-name').value.trim(), target = byId('monitor-url').value.trim();
       if (!monitorName) { errorBox.textContent = 'Enter a monitor name.'; errorBox.hidden = false; return; }
       let parsed;
       try { parsed = new URL(target); }
@@ -80,21 +89,68 @@
       if (parsed.username || parsed.password) {
         errorBox.textContent = 'Do not put a username or password in the URL.'; errorBox.hidden = false; return;
       }
-      try { await req('/monitors', 'POST', {name: monitorName, url: target}); await load(); }
+      addButton.disabled = true; addButton.textContent = 'Adding…';
+      try {
+        await req('/monitors', 'POST', {name: monitorName, url: target});
+        byId('monitor-name').value = ''; byId('monitor-url').value = '';
+        errorBox.className = 'success'; errorBox.setAttribute('role', 'status'); errorBox.textContent = 'Monitor added. Run a check or open its history from the list.'; errorBox.hidden = false;
+        await load();
+      }
       catch (error) { errorBox.textContent = error.message; errorBox.hidden = false; }
+      finally { addButton.disabled = false; addButton.textContent = 'Add monitor'; }
     }
     async function check(id) {
+      busyChecks.add(id); renderMonitors();
       try { await req('/monitors/' + id + '/check', 'POST'); await load(); await showDetail(id); }
-      catch (error) { alert(error.message); }
+      catch (error) { byId('msg').textContent = error.message; }
+      finally { busyChecks.delete(id); renderMonitors(); }
+    }
+    async function toggleMonitor(id) {
+      const monitor = monitorCache.find(item => item.id === id); if (!monitor) return;
+      try {
+        await req('/monitors/' + id, 'PATCH', {name: monitor.name, url: monitor.url, interval_seconds: monitor.interval_seconds, timeout_seconds: monitor.timeout_seconds, expected_status: monitor.expected_status, latency_threshold_ms: monitor.latency_threshold_ms, is_active: !monitor.is_active});
+        await load();
+      } catch (error) { byId('msg').textContent = error.message; }
+    }
+    async function deleteMonitor(id) {
+      const monitor = monitorCache.find(item => item.id === id); if (!monitor) return;
+      if (!window.confirm('Delete “' + monitor.name + '” and its check history?')) return;
+      try { await req('/monitors/' + id, 'DELETE'); byId('detail').hidden = true; await load(); byId('msg').textContent = 'Monitor deleted'; }
+      catch (error) { byId('msg').textContent = error.message; }
+    }
+    async function incidentAction(id, action) {
+      try { await req('/incidents/' + id + '/' + action, 'POST'); await load(); }
+      catch (error) { byId('msg').textContent = error.message; }
     }
     async function load() {
       if (!token) return;
+      byId('msg').textContent = 'Refreshing monitor data…';
       try {
         const data = await req('/monitors');
-        rows.innerHTML = data.items.map(m => '<tr><td><button class="link" onclick="showDetail(\'' + m.id + '\')">' + esc(m.name) + '</button></td><td>' + esc(m.url.split('?')[0]) + '</td><td><span class="badge ' + esc((m.last_status || 'UNKNOWN').toLowerCase()) + '">' + esc(m.last_status || 'UNKNOWN') + '</span></td><td>' + (m.last_latency_ms ?? '—') + ' ms</td><td><button onclick="check(\'' + m.id + '\')">Check now</button></td></tr>').join('') || '<tr><td colspan="5" class="muted">No monitors yet. Add an endpoint above to begin.</td></tr>';
+        monitorCache = data.items;
+        const count = state => monitorCache.filter(m => m.is_active && (m.last_status || 'UNKNOWN') === state).length;
+        byId('stat-total').textContent = monitorCache.length;
+        byId('stat-up').textContent = count('UP'); byId('stat-degraded').textContent = count('DEGRADED');
+        byId('stat-down').textContent = count('DOWN') + count('TIMEOUT') + count('ERROR');
+        renderMonitors();
         const incidentsData = await req('/incidents');
-        incidents.innerHTML = incidentsData.items.map(i => '<article><strong>' + esc(i.title) + '</strong> <span class="badge">' + esc(i.status) + '</span><p>' + esc(i.summary) + '</p><small>Opened ' + date(i.opened_at) + '</small></article>').join('') || '<p class="muted">No incidents.</p>';
-      } catch (error) { msg.textContent = error.message; }
+        byId('stat-incidents').textContent = incidentsData.items.filter(i => i.status === 'OPEN').length;
+        byId('incidents').innerHTML = incidentsData.items.map(i => '<article><strong>' + esc(i.title) + '</strong> <span class="badge">' + esc(i.status) + '</span><p>' + esc(i.summary) + '</p><small>Opened ' + date(i.opened_at) + '</small><div class="actions">' + (i.status === 'OPEN' ? '<button class="secondary" onclick="incidentAction(\'' + i.id + '\',\'acknowledge\')">Acknowledge</button>' : '') + (['OPEN','ACKNOWLEDGED'].includes(i.status) ? '<button class="secondary" onclick="incidentAction(\'' + i.id + '\',\'resolve\')">Resolve</button>' : '') + '</div></article>').join('') || '<p class="empty">All clear — no incidents.</p>';
+        byId('msg').textContent = 'Updated just now';
+      } catch (error) { byId('msg').textContent = error.message; }
+    }
+    function renderMonitors() {
+      const query = byId('monitor-search').value.trim().toLowerCase(), state = byId('status-filter').value;
+      const filtered = monitorCache.filter(m => {
+        const current = m.is_active ? (m.last_status || 'UNKNOWN') : 'PAUSED';
+        return (state === 'ALL' || state === current) && (!query || (m.name + ' ' + m.url).toLowerCase().includes(query));
+      });
+      byId('rows').innerHTML = filtered.map(m => { const current = m.is_active ? (m.last_status || 'UNKNOWN') : 'PAUSED'; return '<tr><td><button class="link" onclick="showDetail(\'' + m.id + '\')">' + esc(m.name) + '</button></td><td>' + esc(m.url.split('?')[0]) + '</td><td><span class="badge ' + esc(current.toLowerCase()) + '">' + esc(current) + '</span></td><td>' + (m.last_latency_ms ?? '—') + ' ms</td><td><button ' + (!m.is_active || busyChecks.has(m.id) ? 'disabled' : '') + ' onclick="check(\'' + m.id + '\')">' + (!m.is_active ? 'Paused' : busyChecks.has(m.id) ? 'Checking…' : 'Check now') + '</button><button class="secondary" onclick="toggleMonitor(\'' + m.id + '\')">' + (m.is_active ? 'Pause' : 'Resume') + '</button><button class="secondary" onclick="deleteMonitor(\'' + m.id + '\')">Delete</button></td></tr>'; }).join('') || '<tr><td colspan="5" class="empty">' + (monitorCache.length ? 'No monitors match these filters.' : 'No monitors yet. Add a public endpoint above to begin.') + '</td></tr>';
+    }
+    function logout() {
+      localStorage.removeItem('token'); token = null; monitorCache = [];
+      byId('main').hidden = true; byId('msg').textContent = 'Signed out';
+      byId('rows').innerHTML = ''; byId('incidents').innerHTML = '';
     }
     async function showDetail(id) {
       const panel = document.getElementById('detail'); panel.hidden = false; panel.innerHTML = '<p class="muted">Loading check history…</p>';
@@ -116,7 +172,7 @@
       const dots = coords.map((point, index) => '<circle cx="' + point[0] + '" cy="' + point[1] + '" r="4" fill="' + (points[index].outcome === 'UP' ? '#34d399' : points[index].outcome === 'DEGRADED' ? '#fbbf24' : '#fb7185') + '"><title>' + esc(points[index].outcome) + ' · ' + points[index].latency_ms + ' ms · ' + date(points[index].checked_at) + '</title></circle>').join('');
       return '<svg viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="Check response time trend"><line x1="' + pad + '" y1="' + (height - pad) + '" x2="' + (width - pad) + '" y2="' + (height - pad) + '" stroke="#40516b"/><polyline points="' + line + '" fill="none" stroke="#60a5fa" stroke-width="3"/>' + dots + '</svg><small class="muted">Oldest shown ← · latency scale 0–' + max.toFixed(0) + ' ms · → newest</small>';
     }
-    if (token) { main.hidden = false; load(); }
+    if (token) { byId('main').hidden = false; load(); }
   </script>
 </body>
 </html>
