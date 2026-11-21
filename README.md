@@ -21,7 +21,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-The app is at port 8000. Grafana binds to localhost port 3000. Set a unique `GRAFANA_ADMIN_PASSWORD` before starting. The provisioned dashboard has a PostgreSQL datasource and example SQL panels; the included app currently stores data in SQLite and does not create the configured PostgreSQL database. Therefore, live Grafana datasource health and real-data panels require migrating the application schema to PostgreSQL and are not yet operational. `/metrics` exposes basic Prometheus text counters, but Prometheus scraping is not provisioned in Compose.
+The app is at port 8000, Grafana binds to localhost port 3000, and Prometheus is at localhost port 9090. Set a unique `GRAFANA_ADMIN_PASSWORD` before starting. Prometheus scrapes `/metrics`; Grafana provisions its Prometheus datasource and dashboard automatically. The dashboard shows monitor states, counts, incidents, and recorded latency summaries. Detailed check history remains available through SentinelAPI because Grafana does not query SQLite directly.
 
 ## Configuration and security
 

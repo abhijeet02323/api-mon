@@ -7,9 +7,11 @@
   "refresh": "30s",
   "time": {"from": "now-24h", "to": "now"},
   "panels": [
-    {"id": 1, "type": "stat", "title": "Monitors by state", "gridPos": {"x": 0, "y": 0, "w": 12, "h": 7}, "datasource": {"type": "prometheus", "uid": "-- Mixed --"}, "targets": [{"expr": "sentinelapi_monitors", "refId": "A"}]},
-    {"id": 2, "type": "stat", "title": "Checks run", "gridPos": {"x": 12, "y": 0, "w": 6, "h": 7}, "datasource": {"type": "prometheus", "uid": "-- Mixed --"}, "targets": [{"expr": "sentinelapi_checks_total", "refId": "A"}]},
-    {"id": 3, "type": "stat", "title": "Open incidents", "gridPos": {"x": 18, "y": 0, "w": 6, "h": 7}, "datasource": {"type": "prometheus", "uid": "-- Mixed --"}, "targets": [{"expr": "sentinelapi_open_incidents", "refId": "A"}]},
-    {"id": 4, "type": "table", "title": "Recent endpoint checks", "gridPos": {"x": 0, "y": 7, "w": 24, "h": 10}, "datasource": {"type": "postgres", "uid": "sentinel-postgres"}, "targets": [{"format": "table", "rawQuery": true, "rawSql": "SELECT checked_at, monitor_id, outcome, http_status, latency_ms, error_type FROM results WHERE $__timeFilter(checked_at::timestamp) ORDER BY checked_at DESC LIMIT 100", "refId": "A"}]}
+    {"id": 1, "type": "stat", "title": "Monitors by state", "gridPos": {"x": 0, "y": 0, "w": 12, "h": 7}, "datasource": {"type": "prometheus", "uid": "sentinel-prometheus"}, "targets": [{"expr": "sentinelapi_monitors", "refId": "A", "legendFormat": "{{state}}"}]},
+    {"id": 2, "type": "stat", "title": "Checks recorded", "gridPos": {"x": 12, "y": 0, "w": 6, "h": 7}, "datasource": {"type": "prometheus", "uid": "sentinel-prometheus"}, "targets": [{"expr": "sentinelapi_checks_total", "refId": "A"}]},
+    {"id": 3, "type": "stat", "title": "Open incidents", "gridPos": {"x": 18, "y": 0, "w": 6, "h": 7}, "datasource": {"type": "prometheus", "uid": "sentinel-prometheus"}, "targets": [{"expr": "sentinelapi_open_incidents", "refId": "A"}]},
+    {"id": 4, "type": "timeseries", "title": "Check outcomes (total recorded)", "gridPos": {"x": 0, "y": 7, "w": 12, "h": 9}, "datasource": {"type": "prometheus", "uid": "sentinel-prometheus"}, "targets": [{"expr": "sentinelapi_check_results_total", "refId": "A", "legendFormat": "{{outcome}}"}]},
+    {"id": 5, "type": "stat", "title": "Average recorded check latency (ms)", "gridPos": {"x": 12, "y": 7, "w": 6, "h": 9}, "datasource": {"type": "prometheus", "uid": "sentinel-prometheus"}, "targets": [{"expr": "sentinelapi_check_latency_avg_ms", "refId": "A"}]},
+    {"id": 6, "type": "stat", "title": "Maximum recorded check latency (ms)", "gridPos": {"x": 18, "y": 7, "w": 6, "h": 9}, "datasource": {"type": "prometheus", "uid": "sentinel-prometheus"}, "targets": [{"expr": "sentinelapi_check_latency_max_ms", "refId": "A"}]}
   ]
 }

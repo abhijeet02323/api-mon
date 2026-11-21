@@ -339,7 +339,13 @@ def metrics():
         counts = c.execute("SELECT last_status,COUNT(*) n FROM monitors GROUP BY last_status").fetchall()
         checks = c.execute("SELECT COUNT(*) FROM results").fetchone()[0]
         incidents = c.execute("SELECT COUNT(*) FROM incidents WHERE status='OPEN'").fetchone()[0]
-    body = "\n".join([f'sentinelapi_monitors{{state="{r["last_status"] or "UNKNOWN"}"}} {r["n"]}' for r in counts] + [f"sentinelapi_checks_total {checks}", f"sentinelapi_open_incidents {incidents}"])
+        outcomes = c.execute("SELECT outcome,COUNT(*) n FROM results GROUP BY outcome").fetchall()
+        latency = c.execute("SELECT AVG(latency_ms) avg_ms,MAX(latency_ms) max_ms FROM results").fetchone()
+    lines = [f'sentinelapi_monitors{{state="{r["last_status"] or "UNKNOWN"}"}} {r["n"]}' for r in counts]
+    lines.append(f"sentinelapi_checks_total {checks}")
+    lines.extend(f'sentinelapi_check_results_total{{outcome="{r["outcome"]}"}} {r["n"]}' for r in outcomes)
+    lines.extend([f"sentinelapi_open_incidents {incidents}", f"sentinelapi_check_latency_avg_ms {latency['avg_ms'] or 0}", f"sentinelapi_check_latency_max_ms {latency['max_ms'] or 0}"])
+    body = "\n".join(lines)
     return Response(body + "\n", media_type="text/plain; version=0.0.4")
 
 

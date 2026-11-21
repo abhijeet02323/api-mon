@@ -14,7 +14,6 @@ services:
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-replace-me}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-not-used-by-sqlite-demo}
     ports:
       - "127.0.0.1:3000:3000"
     volumes:
@@ -22,6 +21,18 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     restart: unless-stopped
+    depends_on:
+      - prometheus
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus"]
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    restart: unless-stopped
 volumes:
   sentinel-data:
   grafana-data:
+  prometheus-data:

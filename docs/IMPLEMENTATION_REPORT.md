@@ -7,20 +7,20 @@
 - Owner-scoped monitor create/list/detail/update/delete, manual check, history, incidents, acknowledgement, and resolution endpoints.
 - SQLite persistence, a one-process periodic scheduler, per-monitor overlap prevention, bounded request timeout, disabled redirects, and no response-body persistence.
 - DNS/IP checks block non-global destinations before monitor creation and before each request. Incidents open after two consecutive availability failures and resolve after a successful check.
-- Docker app/Grafana setup, an example Grafana dashboard and datasource provisioning, environment template, backlog, and this report.
+- Docker app/Prometheus/Grafana setup, an example metrics dashboard and datasource provisioning, environment template, backlog, and this report.
 
 ## Architecture and run instructions
 
-FastAPI + httpx + SQLite in one container, with an in-process asyncio scheduler. Grafana runs as a separate Compose service. Start with `cp .env.example .env && docker compose up --build`. See the root README for account setup and usage.
+FastAPI + httpx + SQLite in one container, with an in-process asyncio scheduler. Prometheus scrapes app metrics and Grafana visualizes them in separate Compose services. Start with `cp .env.example .env && docker compose up --build`. See the root README for account setup and usage.
 
 ## Verification
 
 - `python -m py_compile app.py`: passed after fixing a syntax error found during initial validation.
 - Grafana dashboard JSON parsing with Python's `json` module: passed.
-- FastAPI/httpx runtime and endpoint tests: not run. The base environment has neither dependency installed and `python -m pip` is unavailable; dependency installation could not begin.
+- FastAPI/httpx runtime and endpoint tests: blocked. `python -m unittest discover -s tests -v` cannot import the app because `httpx` is not installed; `python -m pip` is unavailable in this environment, so dependencies could not be installed.
 - UI → API → DB → result path, scheduler behavior, and incident transitions: not runtime verified.
-- Docker Compose, Grafana datasource, PostgreSQL, AWS deployment, and CloudWatch: not verified. There are no application/database services or AWS credentials in this checkout.
-- Git history/status/commit: not available. `.git` exists as an empty, read-only directory; `git status` reports “not a git repository.” No commit was created.
+- Docker Compose and live Grafana datasource: configured but not runtime verified because Docker is unavailable in the build environment. PostgreSQL is not used. AWS deployment and CloudWatch: not verified; no AWS credentials are available in this checkout.
+- Git history/status: history is available, but this update could not be committed because the workspace marks `.git` read-only (`git add` cannot create `.git/index.lock`). Runtime tests remain blocked by the missing Python dependencies.
 
 ## Security review
 
@@ -30,7 +30,7 @@ Known gaps: no login or manual-check rate limiting, session expiry/revocation, T
 
 ## Deployment and product gaps
 
-AWS deployment was not attempted. The brief's P0 PostgreSQL requirement is not met: SQLite was selected to make the otherwise empty checkout runnable without provisioned infrastructure. Grafana files are present, but the datasource requires PostgreSQL and no PostgreSQL schema/service is configured, so live panels are not expected to work. This does not satisfy the brief's Grafana acceptance checks.
+AWS deployment was not attempted. The brief's P0 PostgreSQL requirement is not met: SQLite was selected to keep this starter checkout self-contained. Grafana is configured to display live app metrics through Prometheus, but the stack was not started here, so datasource health and panel data have not been verified. Grafana does not query individual SQLite check history.
 
 SNS and Bedrock are not implemented. Latency does not trigger incidents. Recovery currently occurs on the next successful check, rather than a configurable recovery threshold. Scheduler state is in-process and unsuitable for multiple API workers/instances.
 
