@@ -4,6 +4,7 @@ import hmac
 import ipaddress
 import json
 import os
+from pathlib import Path
 import secrets
 import socket
 import sqlite3
@@ -350,5 +351,6 @@ def metrics():
 
 
 @app.get("/", response_class=HTMLResponse)
-def dashboard():
-    return HTMLResponse("""<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'><title>SentinelAPI</title><style>body{font:16px system-ui;background:#0b1220;color:#e5edf8;max-width:1050px;margin:40px auto;padding:0 20px}input,button{padding:10px;margin:4px;border-radius:8px;border:1px solid #334155;background:#111c30;color:inherit}button{background:#2563eb;cursor:pointer}section{background:#111c30;padding:18px;border-radius:12px;margin:14px 0}table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:10px;border-bottom:1px solid #334155}.muted{color:#9aabc2}</style></head><body><h1>SentinelAPI</h1><p class='muted'>API availability monitoring</p><section><h2>Sign in / Register</h2><input id='email' placeholder='Email'><input id='password' type='password' placeholder='Password'><button onclick='auth("login")'>Sign in</button><button onclick='auth("register")'>Create account</button><span id='msg'></span></section><section id='main' hidden><h2>Add monitor</h2><input id='name' placeholder='Name'><input id='url' placeholder='https://example.com/health'><button onclick='add()'>Add monitor</button><h2>Monitors</h2><table><thead><tr><th>Name</th><th>Endpoint</th><th>Status</th><th>Latency</th><th>Actions</th></tr></thead><tbody id='rows'></tbody></table><h2>Incidents</h2><div id='incidents'></div></section><script>let token=localStorage.token;const req=async(path,method='GET',data)=>{let r=await fetch('/api/v1'+path,{method,headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:data?JSON.stringify(data):undefined});let d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.detail||r.status);return d};async function auth(mode){try{if(mode==='register')await req('/auth/register','POST',{email:email.value,password:password.value});let d=await req('/auth/login','POST',{email:email.value,password:password.value});token=d.access_token;localStorage.token=token;main.hidden=false;msg.textContent='Signed in';load()}catch(e){msg.textContent=e.message}}async function add(){try{await req('/monitors','POST',{name:name.value,url:url.value});load()}catch(e){alert(e.message)}}async function check(id){try{await req('/monitors/'+id+'/check','POST');load()}catch(e){alert(e.message)}}async function load(){if(!token)return;try{let d=await req('/monitors');rows.innerHTML=d.items.map(m=>`<tr><td>${esc(m.name)}</td><td>${esc(m.url.split('?')[0])}</td><td>${m.last_status||'UNKNOWN'}</td><td>${m.last_latency_ms??'—'} ms</td><td><button onclick="check('${m.id}')">Check now</button></td></tr>`).join('');let i=await req('/incidents');incidents.innerHTML=i.items.map(x=>`<p>${esc(x.title)} — ${esc(x.summary)} (${x.status})</p>`).join('')||'No incidents'}catch(e){msg.textContent=e.message}}function esc(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}if(token){main.hidden=false;load()}</script></body></html>""")
+def dashboard_detail_ui():
+    page = Path(__file__).with_name("dashboard.html").read_text(encoding="utf-8")
+    return HTMLResponse(page)

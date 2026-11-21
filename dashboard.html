@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SentinelAPI</title>
+  <style>
+    :root{color-scheme:dark}body{font:16px system-ui;background:#0b1220;color:#e5edf8;max-width:1150px;margin:38px auto;padding:0 20px}
+    input,button{padding:10px 12px;margin:4px;border-radius:8px;border:1px solid #334155;background:#111c30;color:inherit}button{background:#2563eb;border-color:#2563eb;cursor:pointer}button:hover{background:#1d4ed8}
+    section{background:#111c30;padding:18px;border-radius:12px;margin:14px 0}table{width:100%;border-collapse:collapse;min-width:720px}td,th{text-align:left;padding:10px;border-bottom:1px solid #334155;vertical-align:top}th{color:#9aabc2;font-weight:500}
+    .muted,small{color:#9aabc2}.link{padding:2px 0;border:0;background:none;color:#93c5fd;text-align:left}.badge{display:inline-block;border-radius:99px;background:#26364c;padding:3px 9px;font-size:12px}.badge.up{background:#064e3b;color:#a7f3d0}.badge.degraded{background:#713f12;color:#fde68a}.badge.down,.badge.error,.badge.timeout{background:#7f1d1d;color:#fecaca}
+    .summary{display:flex;gap:28px;flex-wrap:wrap;padding:10px 0}.summary span{color:#9aabc2}.summary strong{display:block;color:#e5edf8;font-size:20px}.chart{background:#0b1220;border-radius:10px;padding:10px;overflow:hidden}.chart svg{width:100%;height:auto;max-height:190px}.scroll{overflow-x:auto}#msg{margin-left:8px}
+  </style>
+</head>
+<body>
+  <h1>SentinelAPI</h1>
+  <p class="muted">API availability monitoring</p>
+  <section>
+    <h2>Sign in / Register</h2>
+    <input id="email" placeholder="Email" autocomplete="email">
+    <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+    <button onclick="auth('login')">Sign in</button>
+    <button onclick="auth('register')">Create account</button>
+    <span id="msg" role="status"></span>
+  </section>
+  <section id="main" hidden>
+    <h2>Add monitor</h2>
+    <input id="name" placeholder="Name">
+    <input id="url" placeholder="https://example.com/health">
+    <button onclick="add()">Add monitor</button>
+    <h2>Monitors</h2>
+    <div class="scroll"><table><thead><tr><th>Name</th><th>Endpoint</th><th>Status</th><th>Latency</th><th>Actions</th></tr></thead><tbody id="rows"></tbody></table></div>
+    <h2>Incidents</h2><div id="incidents"></div>
+    <section id="detail" hidden aria-live="polite"></section>
+  </section>
+  <script>
+    let token = localStorage.token;
+    const req = async (path, method, data) => {
+      const response = await fetch('/api/v1' + path, {
+        method: method || 'GET',
+        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token},
+        body: data ? JSON.stringify(data) : undefined
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw Error(body.detail || response.status);
+      return body;
+    };
+    const esc = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+    const date = value => value ? new Date(value).toLocaleString() : '—';
+
+    async function auth(mode) {
+      try {
+        if (mode === 'register') await req('/auth/register', 'POST', {email: email.value, password: password.value});
+        const result = await req('/auth/login', 'POST', {email: email.value, password: password.value});
+        token = result.access_token; localStorage.token = token; main.hidden = false; msg.textContent = 'Signed in'; await load();
+      } catch (error) { msg.textContent = error.message; }
+    }
+    async function add() {
+      try { await req('/monitors', 'POST', {name: name.value, url: url.value}); await load(); }
+      catch (error) { alert(error.message); }
+    }
+    async function check(id) {
+      try { await req('/monitors/' + id + '/check', 'POST'); await load(); await showDetail(id); }
+      catch (error) { alert(error.message); }
+    }
+    async function load() {
+      if (!token) return;
+      try {
+        const data = await req('/monitors');
+        rows.innerHTML = data.items.map(m => '<tr><td><button class="link" onclick="showDetail(\'' + m.id + '\')">' + esc(m.name) + '</button></td><td>' + esc(m.url.split('?')[0]) + '</td><td><span class="badge ' + esc((m.last_status || 'UNKNOWN').toLowerCase()) + '">' + esc(m.last_status || 'UNKNOWN') + '</span></td><td>' + (m.last_latency_ms ?? '—') + ' ms</td><td><button onclick="check(\'' + m.id + '\')">Check now</button></td></tr>').join('') || '<tr><td colspan="5" class="muted">No monitors yet. Add an endpoint above to begin.</td></tr>';
+        const incidentsData = await req('/incidents');
+        incidents.innerHTML = incidentsData.items.map(i => '<article><strong>' + esc(i.title) + '</strong> <span class="badge">' + esc(i.status) + '</span><p>' + esc(i.summary) + '</p><small>Opened ' + date(i.opened_at) + '</small></article>').join('') || '<p class="muted">No incidents.</p>';
+      } catch (error) { msg.textContent = error.message; }
+    }
+    async function showDetail(id) {
+      const panel = document.getElementById('detail'); panel.hidden = false; panel.innerHTML = '<p class="muted">Loading check history…</p>';
+      try {
+        const pair = await Promise.all([req('/monitors/' + id), req('/monitors/' + id + '/results?limit=100')]);
+        const monitor = pair[0], items = pair[1].items;
+        const historyRows = items.map(item => '<tr><td>' + date(item.checked_at) + '</td><td><span class="badge ' + esc(item.outcome.toLowerCase()) + '">' + esc(item.outcome) + '</span></td><td>' + (item.http_status ?? '—') + '</td><td>' + (item.latency_ms ?? '—') + ' ms</td><td>' + esc(item.error_message || item.error_type || '—') + '</td></tr>').join('');
+        panel.innerHTML = '<button onclick="document.getElementById(\'detail\').hidden=true">← Back to overview</button><h2>' + esc(monitor.name) + '</h2><p class="muted">' + esc(monitor.url.split('?')[0]) + '</p><div class="summary"><span>Current state<strong>' + esc(monitor.last_status || 'UNKNOWN') + '</strong></span><span>Last latency<strong>' + (monitor.last_latency_ms ?? '—') + ' ms</strong></span><span>Checks shown<strong>' + items.length + '</strong></span></div><h3>Response time</h3><div class="chart">' + latencyChart(items) + '</div><h3>Recent check history</h3>' + (items.length ? '<div class="scroll"><table><thead><tr><th>Checked</th><th>Outcome</th><th>HTTP</th><th>Latency</th><th>Failure details</th></tr></thead><tbody>' + historyRows + '</tbody></table></div>' : '<p class="muted">No checks recorded yet. Run a check to start collecting history.</p>');
+      } catch (error) {
+        panel.innerHTML = '<button onclick="document.getElementById(\'detail\').hidden=true">← Back to overview</button><p role="alert">' + esc(error.message) + '</p>';
+      }
+    }
+    function latencyChart(items) {
+      const points = items.filter(item => item.latency_ms !== null).slice(0, 50).reverse();
+      if (!points.length) return '<p class="muted">No latency data yet.</p>';
+      const max = Math.max(...points.map(item => item.latency_ms), 1), width = 900, height = 170, pad = 18;
+      const coords = points.map((item, index) => [pad + index * (width - 2 * pad) / Math.max(points.length - 1, 1), height - pad - (item.latency_ms / max) * (height - 2 * pad)]);
+      const line = coords.map(point => point.join(',')).join(' ');
+      const dots = coords.map((point, index) => '<circle cx="' + point[0] + '" cy="' + point[1] + '" r="4" fill="' + (points[index].outcome === 'UP' ? '#34d399' : points[index].outcome === 'DEGRADED' ? '#fbbf24' : '#fb7185') + '"><title>' + esc(points[index].outcome) + ' · ' + points[index].latency_ms + ' ms · ' + date(points[index].checked_at) + '</title></circle>').join('');
+      return '<svg viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="Check response time trend"><line x1="' + pad + '" y1="' + (height - pad) + '" x2="' + (width - pad) + '" y2="' + (height - pad) + '" stroke="#40516b"/><polyline points="' + line + '" fill="none" stroke="#60a5fa" stroke-width="3"/>' + dots + '</svg><small class="muted">Oldest shown ← · latency scale 0–' + max.toFixed(0) + ' ms · → newest</small>';
+    }
+    if (token) { main.hidden = false; load(); }
+  </script>
+</body>
+</html>

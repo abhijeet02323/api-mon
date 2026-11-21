@@ -5,6 +5,7 @@
 - FastAPI REST service with OpenAPI, health/readiness endpoints, and a minimal browser dashboard.
 - Account registration/login with salted PBKDF2 password hashes and opaque bearer sessions.
 - Owner-scoped monitor create/list/detail/update/delete, manual check, history, incidents, acknowledgement, and resolution endpoints.
+- Dashboard monitor detail view with recent check history, failure details, and an inline response-time trend chart.
 - SQLite persistence, a one-process periodic scheduler, per-monitor overlap prevention, bounded request timeout, disabled redirects, and no response-body persistence.
 - DNS/IP checks block non-global destinations before monitor creation and before each request. Incidents open after two consecutive availability failures and resolve after a successful check.
 - Docker app/Prometheus/Grafana setup, an example metrics dashboard and datasource provisioning, environment template, backlog, and this report.
@@ -17,6 +18,7 @@ FastAPI + httpx + SQLite in one container, with an in-process asyncio scheduler.
 
 - `python -m py_compile app.py`: passed after fixing a syntax error found during initial validation.
 - Grafana dashboard JSON parsing with Python's `json` module: passed.
+- Dashboard inline JavaScript syntax check with `node --check`: passed for monitor history and latency chart code.
 - FastAPI/httpx runtime and endpoint tests: blocked. `python -m unittest discover -s tests -v` cannot import the app because `httpx` is not installed; `python -m pip` is unavailable in this environment, so dependencies could not be installed.
 - UI → API → DB → result path, scheduler behavior, and incident transitions: not runtime verified.
 - Docker Compose and live Grafana datasource: configured but not runtime verified because Docker is unavailable in the build environment. PostgreSQL is not used. AWS deployment and CloudWatch: not verified; no AWS credentials are available in this checkout.

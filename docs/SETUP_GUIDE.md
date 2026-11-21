@@ -80,7 +80,8 @@ The SQLite database is created on first app startup. To use a different path, se
 2. Sign in if the page does not sign you in automatically.
 3. Add a descriptive name and a public HTTP or HTTPS endpoint that is safe to check with GET.
 4. Select **Check now** and review the status and response time.
-5. Open the monitor history or incidents through the API docs. API calls require the bearer token returned by `/api/v1/auth/login`.
+5. Select the monitor name to view up to 100 recent checks, failure details, and the latency trend.
+6. Incidents appear below the monitor list. API calls require the bearer token returned by `/api/v1/auth/login`.
 
 The application rejects credentials in URLs and targets that resolve to local, private, reserved, or metadata IP addresses. Redirects are disabled. The scheduler checks active monitors at their configured interval; the minimum interval defaults to 60 seconds.
 

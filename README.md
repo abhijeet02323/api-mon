@@ -12,7 +12,7 @@ cp .env.example .env
 python -m uvicorn app:app --reload
 ```
 
-Open <http://localhost:8000>, create an account with a password of at least 10 characters, and add a public HTTP(S) GET endpoint. API docs are at `/docs`; liveness and database readiness are `/health` and `/ready`. Data is stored in `sentinelapi.db` by default. The first check is manual; active monitors are subsequently checked at their configured interval (minimum 60 seconds).
+Open <http://localhost:8000>, create an account with a password of at least 10 characters, and add a public HTTP(S) GET endpoint. Select a monitor name to open its recent check history and response-time chart. API docs are at `/docs`; liveness and database readiness are `/health` and `/ready`. Data is stored in `sentinelapi.db` by default. The first check is manual; active monitors are subsequently checked at their configured interval (minimum 60 seconds).
 
 ## Docker and Grafana
 
