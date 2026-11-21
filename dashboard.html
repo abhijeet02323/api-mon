@@ -9,7 +9,7 @@
     input,button{padding:10px 12px;margin:4px;border-radius:8px;border:1px solid #334155;background:#111c30;color:inherit}button{background:#2563eb;border-color:#2563eb;cursor:pointer}button:hover{background:#1d4ed8}
     section{background:#111c30;padding:18px;border-radius:12px;margin:14px 0}table{width:100%;border-collapse:collapse;min-width:720px}td,th{text-align:left;padding:10px;border-bottom:1px solid #334155;vertical-align:top}th{color:#9aabc2;font-weight:500}
     .muted,small{color:#9aabc2}.link{padding:2px 0;border:0;background:none;color:#93c5fd;text-align:left}.badge{display:inline-block;border-radius:99px;background:#26364c;padding:3px 9px;font-size:12px}.badge.up{background:#064e3b;color:#a7f3d0}.badge.degraded{background:#713f12;color:#fde68a}.badge.down,.badge.error,.badge.timeout{background:#7f1d1d;color:#fecaca}
-    .summary{display:flex;gap:28px;flex-wrap:wrap;padding:10px 0}.summary span{color:#9aabc2}.summary strong{display:block;color:#e5edf8;font-size:20px}.chart{background:#0b1220;border-radius:10px;padding:10px;overflow:hidden}.chart svg{width:100%;height:auto;max-height:190px}.scroll{overflow-x:auto}#msg{margin-left:8px}
+    .summary{display:flex;gap:28px;flex-wrap:wrap;padding:10px 0}.summary span{color:#9aabc2}.summary strong{display:block;color:#e5edf8;font-size:20px}.chart{background:#0b1220;border-radius:10px;padding:10px;overflow:hidden}.chart svg{width:100%;height:auto;max-height:190px}.scroll{overflow-x:auto}#msg{margin-left:8px}.form-error{color:#fecaca;background:#451a1a;border:1px solid #7f1d1d;border-radius:8px;padding:10px}.muted code{color:#bfdbfe}
   </style>
 </head>
 <body>
@@ -26,8 +26,10 @@
   <section id="main" hidden>
     <h2>Add monitor</h2>
     <input id="name" placeholder="Name">
-    <input id="url" placeholder="https://example.com/health">
+    <input id="url" type="url" placeholder="https://example.org/" autocomplete="url">
     <button onclick="add()">Add monitor</button>
+    <p id="create-error" class="form-error" role="alert" hidden></p>
+    <p class="muted">Use a full public HTTP(S) address, for example <code>https://example.org/</code>. Do not include login credentials. Local, private, and metadata addresses are blocked.</p>
     <h2>Monitors</h2>
     <div class="scroll"><table><thead><tr><th>Name</th><th>Endpoint</th><th>Status</th><th>Latency</th><th>Actions</th></tr></thead><tbody id="rows"></tbody></table></div>
     <h2>Incidents</h2><div id="incidents"></div>
@@ -42,9 +44,18 @@
         body: data ? JSON.stringify(data) : undefined
       });
       const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw Error(body.detail || response.status);
+      if (!response.ok) throw Error(formatApiError(body.detail, response.status));
       return body;
     };
+    function formatApiError(detail, status) {
+      if (Array.isArray(detail)) return detail.map(issue => {
+        const field = Array.isArray(issue.loc) ? issue.loc.filter(part => part !== 'body').join('.') : '';
+        return (field ? field + ': ' : '') + (issue.msg || 'Invalid value');
+      }).join('\n');
+      if (typeof detail === 'string') return detail;
+      if (detail && typeof detail === 'object') return detail.message || JSON.stringify(detail);
+      return 'Request failed (' + status + ')';
+    }
     const esc = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
     const date = value => value ? new Date(value).toLocaleString() : '—';
 
@@ -56,8 +67,21 @@
       } catch (error) { msg.textContent = error.message; }
     }
     async function add() {
-      try { await req('/monitors', 'POST', {name: name.value, url: url.value}); await load(); }
-      catch (error) { alert(error.message); }
+      const errorBox = document.getElementById('create-error');
+      errorBox.hidden = true; errorBox.textContent = '';
+      const monitorName = name.value.trim(), target = url.value.trim();
+      if (!monitorName) { errorBox.textContent = 'Enter a monitor name.'; errorBox.hidden = false; return; }
+      let parsed;
+      try { parsed = new URL(target); }
+      catch (_) { errorBox.textContent = 'Enter a complete URL, such as https://example.org/.'; errorBox.hidden = false; return; }
+      if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname) {
+        errorBox.textContent = 'The URL must start with http:// or https:// and include a hostname.'; errorBox.hidden = false; return;
+      }
+      if (parsed.username || parsed.password) {
+        errorBox.textContent = 'Do not put a username or password in the URL.'; errorBox.hidden = false; return;
+      }
+      try { await req('/monitors', 'POST', {name: monitorName, url: target}); await load(); }
+      catch (error) { errorBox.textContent = error.message; errorBox.hidden = false; }
     }
     async function check(id) {
       try { await req('/monitors/' + id + '/check', 'POST'); await load(); await showDetail(id); }
