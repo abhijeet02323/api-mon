@@ -2,7 +2,7 @@ FROM python:3.12-slim
 WORKDIR /srv
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY app.py dashboard.html ./
+COPY app.py assertions.py dashboard.html ./
 RUN useradd --create-home app && chown -R app:app /srv
 USER app
 EXPOSE 8000

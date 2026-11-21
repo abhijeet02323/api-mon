@@ -12,7 +12,7 @@ cp .env.example .env
 python -m uvicorn app:app --reload
 ```
 
-Open <http://localhost:8000>, create an account with a password of at least 10 characters, and add a public HTTP(S) GET endpoint. The dashboard includes status totals, search and status filters, pause/resume and delete controls, plus incident acknowledgement and resolution. Select a monitor name to open its recent check history and response-time chart. API docs are at `/docs`; liveness and database readiness are `/health` and `/ready`. Data is stored in `sentinelapi.db` by default. The first check is manual; active monitors are subsequently checked at their configured interval (minimum 60 seconds).
+Open <http://localhost:8000>, create an account with a password of at least 10 characters, and add a public HTTP(S) GET endpoint. The dashboard includes status totals, search and status filters, editing, pause/resume and delete controls, plus incident acknowledgement and resolution. Select a monitor name to open its recent check history and response-time chart. API docs are at `/docs`; liveness and database readiness are `/health` and `/ready`. Data is stored in `sentinelapi.db` by default. The first check is manual; active monitors are subsequently checked at their configured interval (minimum 60 seconds).
 
 ## Docker and Grafana
 
@@ -22,6 +22,24 @@ docker compose up --build
 ```
 
 The app is at port 8000, Grafana binds to localhost port 3000, and Prometheus is at localhost port 9090. Set a unique `GRAFANA_ADMIN_PASSWORD` before starting. Prometheus scrapes `/metrics`; Grafana provisions its Prometheus datasource and dashboard automatically. The dashboard shows monitor states, counts, incidents, and recorded latency summaries. Detailed check history remains available through SentinelAPI because Grafana does not query SQLite directly.
+
+## Scenario-based API tests
+
+Open a monitor's detail view and choose **Add test case** to define another safe GET scenario for that service. A case has its own URL, expected status, timeout, optional latency threshold, and up to 20 JSON response assertions. Up to 25 cases can be attached to a monitor. Enabled cases run with that monitor's scheduled checks; **Run case** executes one immediately.
+
+Assertions use simple JSON paths and explicit operators. For example:
+
+```json
+[
+  {"path": "status", "operator": "equals", "value": "ok"},
+  {"path": "data.items[0].id", "operator": "exists"},
+  {"path": "data.count", "operator": "gte", "value": 1}
+]
+```
+
+Supported operators are `equals`, `not_equals`, `contains`, `gt`, `gte`, `lt`, `lte`, `exists`, and `not_exists`. Case runs record `UP`, `DEGRADED`, `DOWN`, `TIMEOUT`, `ERROR`, or `VALIDATION_FAILED`; two consecutive failures open a deduplicated incident, and two passing runs resolve it. Response bodies are read only when assertions are configured, capped at 256 KiB, and never persisted. Requests use GET only, disable redirects, and reuse the monitor's public-destination safety rules.
+
+This is a small scenario runner, not a universal API test language. It does not yet send POST/PUT/PATCH/DELETE requests, custom headers or authentication, chain steps, extract variables, or validate arbitrary schemas. Those need explicit credential handling, safe execution rules, and richer test contracts before they are added.
 
 ## Configuration and security
 

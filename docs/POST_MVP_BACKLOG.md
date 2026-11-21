@@ -8,3 +8,4 @@
 6. Add latency incident rules, configurable failure/recovery thresholds, acknowledgement and resolution timeline.
 7. Add CloudWatch metrics/logs, SNS notifications, and optional evidence-only Bedrock summaries.
 8. Complete EC2 + RDS deployment, TLS/reverse proxy, secrets integration, backups, monitoring, and live Grafana verification.
+9. Extend the scenario DSL with response-header/schema assertions, controlled secret references, and chained read-only steps; keep write methods opt-in with safeguards, never permit arbitrary unbounded payloads, and add isolated fake-service integration tests.

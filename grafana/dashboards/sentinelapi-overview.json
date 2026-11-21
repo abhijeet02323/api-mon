@@ -12,6 +12,8 @@
     {"id": 3, "type": "stat", "title": "Open incidents", "gridPos": {"x": 18, "y": 0, "w": 6, "h": 7}, "datasource": {"type": "prometheus", "uid": "sentinel-prometheus"}, "targets": [{"expr": "sentinelapi_open_incidents", "refId": "A"}]},
     {"id": 4, "type": "timeseries", "title": "Check outcomes (total recorded)", "gridPos": {"x": 0, "y": 7, "w": 12, "h": 9}, "datasource": {"type": "prometheus", "uid": "sentinel-prometheus"}, "targets": [{"expr": "sentinelapi_check_results_total", "refId": "A", "legendFormat": "{{outcome}}"}]},
     {"id": 5, "type": "stat", "title": "Average recorded check latency (ms)", "gridPos": {"x": 12, "y": 7, "w": 6, "h": 9}, "datasource": {"type": "prometheus", "uid": "sentinel-prometheus"}, "targets": [{"expr": "sentinelapi_check_latency_avg_ms", "refId": "A"}]},
-    {"id": 6, "type": "stat", "title": "Maximum recorded check latency (ms)", "gridPos": {"x": 18, "y": 7, "w": 6, "h": 9}, "datasource": {"type": "prometheus", "uid": "sentinel-prometheus"}, "targets": [{"expr": "sentinelapi_check_latency_max_ms", "refId": "A"}]}
+    {"id": 6, "type": "stat", "title": "Maximum recorded check latency (ms)", "gridPos": {"x": 18, "y": 7, "w": 6, "h": 9}, "datasource": {"type": "prometheus", "uid": "sentinel-prometheus"}, "targets": [{"expr": "sentinelapi_check_latency_max_ms", "refId": "A"}]},
+    {"id": 7, "type": "stat", "title": "Scheduled API test cases", "gridPos": {"x": 0, "y": 16, "w": 6, "h": 7}, "datasource": {"type": "prometheus", "uid": "sentinel-prometheus"}, "targets": [{"expr": "sentinelapi_active_test_cases", "refId": "A"}]},
+    {"id": 8, "type": "timeseries", "title": "API test case outcomes recorded", "gridPos": {"x": 6, "y": 16, "w": 18, "h": 7}, "datasource": {"type": "prometheus", "uid": "sentinel-prometheus"}, "targets": [{"expr": "sentinelapi_test_case_results_total", "refId": "A", "legendFormat": "{{outcome}}"}]}
   ]
 }

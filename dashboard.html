@@ -10,6 +10,7 @@
     section{background:#111c30;padding:18px;border-radius:12px;margin:14px 0}.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px}.toolbar h2{margin:8px 0}.cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.card{background:#111c30;border:1px solid #26364c;padding:16px;border-radius:12px}.card span{color:#9aabc2;font-size:13px}.card strong{display:block;font-size:26px;margin-top:6px}table{width:100%;border-collapse:collapse;min-width:720px}td,th{text-align:left;padding:10px;border-bottom:1px solid #334155;vertical-align:top}th{color:#9aabc2;font-weight:500}
     .muted,small{color:#9aabc2}.link{padding:2px 0;border:0;background:none;color:#93c5fd;text-align:left}.badge{display:inline-block;border-radius:99px;background:#26364c;padding:3px 9px;font-size:12px}.badge.up{background:#064e3b;color:#a7f3d0}.badge.degraded{background:#713f12;color:#fde68a}.badge.down,.badge.error,.badge.timeout{background:#7f1d1d;color:#fecaca}
     .summary{display:flex;gap:28px;flex-wrap:wrap;padding:10px 0}.summary span{color:#9aabc2}.summary strong{display:block;color:#e5edf8;font-size:20px}.chart{background:#0b1220;border-radius:10px;padding:10px;overflow:hidden}.chart svg{width:100%;height:auto;max-height:190px}.scroll{overflow-x:auto}#msg{margin-left:8px}.form-error{color:#fecaca;background:#451a1a;border:1px solid #7f1d1d;border-radius:8px;padding:10px;white-space:pre-line}.muted code{color:#bfdbfe}.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.filters input{flex:1;min-width:210px}.filters select{padding:10px;border-radius:8px;background:#111c30;color:inherit;border:1px solid #334155}.secondary{background:#26364c;border-color:#40516b}.success{color:#a7f3d0}.empty{padding:20px;text-align:center;color:#9aabc2}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}button:disabled{opacity:.6;cursor:wait}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #93c5fd;outline-offset:2px}
+    dialog{width:min(620px,calc(100% - 24px));border:1px solid #40516b;border-radius:14px;background:#111c30;color:#e5edf8;padding:22px}dialog::backdrop{background:#020617cc;backdrop-filter:blur(3px)}dialog h2{margin-top:0}.edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.edit-field{display:flex;flex-direction:column;gap:4px;margin:4px}.edit-field input,.edit-field textarea{margin:0;width:100%}.edit-field textarea{padding:10px 12px;border-radius:8px;border:1px solid #334155;background:#0b1220;color:inherit;font:13px ui-monospace,monospace;resize:vertical}.edit-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
     @media(max-width:760px){body{margin:18px auto;padding:0 12px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.toolbar{align-items:flex-start}.toolbar h2{font-size:20px}}
   </style>
 </head>
@@ -38,6 +39,41 @@
     <h2>Incidents</h2><div id="incidents"></div>
     <section id="detail" hidden aria-live="polite"></section>
   </section>
+  <dialog id="monitor-dialog" aria-labelledby="edit-title">
+    <form id="edit-form" onsubmit="saveMonitor(event)">
+      <h2 id="edit-title">Edit monitor</h2>
+      <input id="edit-id" type="hidden">
+      <div class="edit-grid">
+        <label class="edit-field">Name<input id="edit-name" required maxlength="100"></label>
+        <label class="edit-field">Endpoint URL<input id="edit-url" type="url" required maxlength="2048" placeholder="https://example.org/health"></label>
+        <label class="edit-field">Check interval (seconds)<input id="edit-interval" type="number" required min="60" max="86400" step="1"></label>
+        <label class="edit-field">Timeout (seconds)<input id="edit-timeout" type="number" required min="1" max="20" step="1"></label>
+        <label class="edit-field">Expected HTTP status<input id="edit-status" type="number" required min="100" max="599" step="1"></label>
+        <label class="edit-field">Latency warning (ms)<input id="edit-latency" type="number" min="1" max="120000" step="1" placeholder="Optional"></label>
+      </div>
+      <p class="muted">Intervals must be at least 60 seconds. Public HTTP(S) endpoints only; redirects and private destinations are blocked.</p>
+      <p id="edit-error" class="form-error" role="alert" hidden></p>
+      <div class="edit-actions"><button class="secondary" type="button" onclick="byId('monitor-dialog').close()">Cancel</button><button id="save-edit" type="submit">Save changes</button></div>
+    </form>
+  </dialog>
+  <dialog id="case-dialog" aria-labelledby="case-title">
+    <form id="case-form" onsubmit="saveCase(event)">
+      <h2 id="case-title">Add API test case</h2>
+      <input id="case-id" type="hidden"><input id="case-monitor-id" type="hidden">
+      <div class="edit-grid">
+        <label class="edit-field">Test case name<input id="case-name" required maxlength="100" placeholder="Returns a healthy payload"></label>
+        <label class="edit-field">Request URL<input id="case-url" type="url" required maxlength="2048" placeholder="https://example.org/health"></label>
+        <label class="edit-field">Expected HTTP status<input id="case-status" type="number" required min="100" max="599" value="200"></label>
+        <label class="edit-field">Timeout (seconds)<input id="case-timeout" type="number" required min="1" max="20" value="5"></label>
+        <label class="edit-field">Latency warning (ms)<input id="case-latency" type="number" min="1" max="120000" placeholder="Optional"></label>
+        <label class="edit-field"><span>Enabled</span><span><input id="case-active" type="checkbox" checked> Run with scheduled checks</span></label>
+      </div>
+      <label class="edit-field">JSON response assertions <textarea id="case-assertions" rows="6" spellcheck="false" placeholder='[{"path":"status","operator":"equals","value":"ok"}]'></textarea></label>
+      <p class="muted">GET only. Use dot paths and numeric array indexes. Operators: equals, not_equals, contains, gt, gte, lt, lte, exists, not_exists. Response body is limited to 256 KiB for assertions.</p>
+      <p id="case-error" class="form-error" role="alert" hidden></p>
+      <div class="edit-actions"><button class="secondary" type="button" onclick="byId('case-dialog').close()">Cancel</button><button id="save-case" type="submit">Save test case</button></div>
+    </form>
+  </dialog>
   <script>
     let token = localStorage.getItem('token');
     let monitorCache = [];
@@ -112,6 +148,33 @@
         await load();
       } catch (error) { byId('msg').textContent = error.message; }
     }
+    function editMonitor(id) {
+      const monitor = monitorCache.find(item => item.id === id); if (!monitor) return;
+      byId('edit-id').value = monitor.id; byId('edit-name').value = monitor.name; byId('edit-url').value = monitor.url;
+      byId('edit-interval').value = monitor.interval_seconds; byId('edit-timeout').value = monitor.timeout_seconds;
+      byId('edit-status').value = monitor.expected_status; byId('edit-latency').value = monitor.latency_threshold_ms ?? '';
+      byId('edit-error').hidden = true; byId('edit-error').textContent = '';
+      byId('monitor-dialog').showModal(); byId('edit-name').focus();
+    }
+    async function saveMonitor(event) {
+      event.preventDefault();
+      const id = byId('edit-id').value, monitor = monitorCache.find(item => item.id === id), errorBox = byId('edit-error'), saveButton = byId('save-edit');
+      if (!monitor) { errorBox.textContent = 'This monitor is no longer available. Refresh the page and try again.'; errorBox.hidden = false; return; }
+      const target = byId('edit-url').value.trim();
+      let parsed;
+      try { parsed = new URL(target); }
+      catch (_) { errorBox.textContent = 'Enter a complete URL beginning with https:// or http://.'; errorBox.hidden = false; return; }
+      if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) {
+        errorBox.textContent = 'Use a public HTTP(S) URL without username or password credentials.'; errorBox.hidden = false; return;
+      }
+      const latency = byId('edit-latency').value;
+      const payload = {name: byId('edit-name').value.trim(), url: target, interval_seconds: Number(byId('edit-interval').value), timeout_seconds: Number(byId('edit-timeout').value), expected_status: Number(byId('edit-status').value), latency_threshold_ms: latency === '' ? null : Number(latency), is_active: Boolean(monitor.is_active)};
+      if (!payload.name) { errorBox.textContent = 'Enter a monitor name.'; errorBox.hidden = false; return; }
+      errorBox.hidden = true; saveButton.disabled = true; saveButton.textContent = 'Saving…';
+      try { await req('/monitors/' + id, 'PATCH', payload); byId('monitor-dialog').close(); await load(); byId('msg').textContent = 'Monitor settings saved'; }
+      catch (error) { errorBox.textContent = error.message; errorBox.hidden = false; }
+      finally { saveButton.disabled = false; saveButton.textContent = 'Save changes'; }
+    }
     async function deleteMonitor(id) {
       const monitor = monitorCache.find(item => item.id === id); if (!monitor) return;
       if (!window.confirm('Delete “' + monitor.name + '” and its check history?')) return;
@@ -145,7 +208,7 @@
         const current = m.is_active ? (m.last_status || 'UNKNOWN') : 'PAUSED';
         return (state === 'ALL' || state === current) && (!query || (m.name + ' ' + m.url).toLowerCase().includes(query));
       });
-      byId('rows').innerHTML = filtered.map(m => { const current = m.is_active ? (m.last_status || 'UNKNOWN') : 'PAUSED'; return '<tr><td><button class="link" onclick="showDetail(\'' + m.id + '\')">' + esc(m.name) + '</button></td><td>' + esc(m.url.split('?')[0]) + '</td><td><span class="badge ' + esc(current.toLowerCase()) + '">' + esc(current) + '</span></td><td>' + (m.last_latency_ms ?? '—') + ' ms</td><td><button ' + (!m.is_active || busyChecks.has(m.id) ? 'disabled' : '') + ' onclick="check(\'' + m.id + '\')">' + (!m.is_active ? 'Paused' : busyChecks.has(m.id) ? 'Checking…' : 'Check now') + '</button><button class="secondary" onclick="toggleMonitor(\'' + m.id + '\')">' + (m.is_active ? 'Pause' : 'Resume') + '</button><button class="secondary" onclick="deleteMonitor(\'' + m.id + '\')">Delete</button></td></tr>'; }).join('') || '<tr><td colspan="5" class="empty">' + (monitorCache.length ? 'No monitors match these filters.' : 'No monitors yet. Add a public endpoint above to begin.') + '</td></tr>';
+      byId('rows').innerHTML = filtered.map(m => { const current = m.is_active ? (m.last_status || 'UNKNOWN') : 'PAUSED'; return '<tr><td><button class="link" onclick="showDetail(\'' + m.id + '\')">' + esc(m.name) + '</button></td><td>' + esc(m.url.split('?')[0]) + '</td><td><span class="badge ' + esc(current.toLowerCase()) + '">' + esc(current) + '</span></td><td>' + (m.last_latency_ms ?? '—') + ' ms</td><td><button ' + (!m.is_active || busyChecks.has(m.id) ? 'disabled' : '') + ' onclick="check(\'' + m.id + '\')">' + (!m.is_active ? 'Paused' : busyChecks.has(m.id) ? 'Checking…' : 'Check now') + '</button><button class="secondary" onclick="editMonitor(\'' + m.id + '\')">Edit</button><button class="secondary" onclick="toggleMonitor(\'' + m.id + '\')">' + (m.is_active ? 'Pause' : 'Resume') + '</button><button class="secondary" onclick="deleteMonitor(\'' + m.id + '\')">Delete</button></td></tr>'; }).join('') || '<tr><td colspan="5" class="empty">' + (monitorCache.length ? 'No monitors match these filters.' : 'No monitors yet. Add a public endpoint above to begin.') + '</td></tr>';
     }
     function logout() {
       localStorage.removeItem('token'); token = null; monitorCache = [];
@@ -155,13 +218,70 @@
     async function showDetail(id) {
       const panel = document.getElementById('detail'); panel.hidden = false; panel.innerHTML = '<p class="muted">Loading check history…</p>';
       try {
-        const pair = await Promise.all([req('/monitors/' + id), req('/monitors/' + id + '/results?limit=100')]);
-        const monitor = pair[0], items = pair[1].items;
+        const pair = await Promise.all([req('/monitors/' + id), req('/monitors/' + id + '/results?limit=100'), req('/monitors/' + id + '/test-cases')]);
+        const monitor = pair[0], items = pair[1].items, cases = pair[2].items;
         const historyRows = items.map(item => '<tr><td>' + date(item.checked_at) + '</td><td><span class="badge ' + esc(item.outcome.toLowerCase()) + '">' + esc(item.outcome) + '</span></td><td>' + (item.http_status ?? '—') + '</td><td>' + (item.latency_ms ?? '—') + ' ms</td><td>' + esc(item.error_message || item.error_type || '—') + '</td></tr>').join('');
-        panel.innerHTML = '<button onclick="document.getElementById(\'detail\').hidden=true">← Back to overview</button><h2>' + esc(monitor.name) + '</h2><p class="muted">' + esc(monitor.url.split('?')[0]) + '</p><div class="summary"><span>Current state<strong>' + esc(monitor.last_status || 'UNKNOWN') + '</strong></span><span>Last latency<strong>' + (monitor.last_latency_ms ?? '—') + ' ms</strong></span><span>Checks shown<strong>' + items.length + '</strong></span></div><h3>Response time</h3><div class="chart">' + latencyChart(items) + '</div><h3>Recent check history</h3>' + (items.length ? '<div class="scroll"><table><thead><tr><th>Checked</th><th>Outcome</th><th>HTTP</th><th>Latency</th><th>Failure details</th></tr></thead><tbody>' + historyRows + '</tbody></table></div>' : '<p class="muted">No checks recorded yet. Run a check to start collecting history.</p>');
+        panel.innerHTML = '<button onclick="document.getElementById(\'detail\').hidden=true">← Back to overview</button><h2>' + esc(monitor.name) + '</h2><p class="muted">' + esc(monitor.url.split('?')[0]) + '</p><div class="summary"><span>Current state<strong>' + esc(monitor.last_status || 'UNKNOWN') + '</strong></span><span>Last latency<strong>' + (monitor.last_latency_ms ?? '—') + ' ms</strong></span><span>Checks shown<strong>' + items.length + '</strong></span></div><h3>Response time</h3><div class="chart">' + latencyChart(items) + '</div><h3>Recent monitor checks</h3>' + (items.length ? '<div class="scroll"><table><thead><tr><th>Checked</th><th>Outcome</th><th>HTTP</th><th>Latency</th><th>Failure details</th></tr></thead><tbody>' + historyRows + '</tbody></table></div>' : '<p class="muted">No checks recorded yet. Run a check to start collecting history.</p>') + '<div class="toolbar"><h3>API test cases (' + cases.length + ')</h3><button onclick="openCaseForm(\'' + monitor.id + '\')">Add test case</button></div><div id="case-list">' + renderCases(cases) + '</div><div id="case-history"></div>';
+        byId('case-list').dataset.cases = JSON.stringify(cases);
       } catch (error) {
         panel.innerHTML = '<button onclick="document.getElementById(\'detail\').hidden=true">← Back to overview</button><p role="alert">' + esc(error.message) + '</p>';
       }
+    }
+    function renderCases(cases) {
+      if (!cases.length) return '<p class="empty">No API test cases yet. Add a case to check a response field or endpoint behavior.</p>';
+      return cases.map(test => {
+        const latest = test.latest_result;
+        const lastRun = latest ? '<span class="badge ' + esc(latest.outcome.toLowerCase()) + '">' + esc(latest.outcome) + '</span> · ' + date(latest.checked_at) + ' · ' + latest.assertions_passed + '/' + latest.assertions_total + ' assertions passed' : '<span class="muted">Not run yet</span>';
+        return '<article><strong>' + esc(test.name) + '</strong> <span class="badge">' + (test.is_active ? 'Scheduled' : 'Disabled') + '</span><p class="muted">GET ' + esc(test.url.split('?')[0]) + ' · expects HTTP ' + test.expected_status + ' · ' + test.assertions.length + ' assertions</p><p>' + lastRun + '</p><div class="actions"><button onclick="runCase(\'' + test.id + '\',\'' + test.monitor_id + '\')">Run case</button><button class="secondary" onclick="showCaseHistory(\'' + test.id + '\')">History</button><button class="secondary" onclick="openCaseForm(\'' + test.monitor_id + '\',\'' + test.id + '\')">Edit</button><button class="secondary" onclick="deleteCase(\'' + test.id + '\',\'' + test.monitor_id + '\')">Delete</button></div></article>';
+      }).join('');
+    }
+    function openCaseForm(monitorId, caseId) {
+      const cases = byId('case-list');
+      const current = caseId ? JSON.parse(cases.dataset.cases || '[]').find(item => item.id === caseId) : null;
+      byId('case-monitor-id').value = monitorId; byId('case-id').value = current ? current.id : '';
+      byId('case-title').textContent = current ? 'Edit API test case' : 'Add API test case';
+      byId('case-name').value = current ? current.name : '';
+      byId('case-url').value = current ? current.url : '';
+      byId('case-status').value = current ? current.expected_status : 200;
+      byId('case-timeout').value = current ? current.timeout_seconds : 5;
+      byId('case-latency').value = current && current.latency_threshold_ms !== null ? current.latency_threshold_ms : '';
+      byId('case-active').checked = current ? Boolean(current.is_active) : true;
+      byId('case-assertions').value = current ? JSON.stringify(current.assertions, null, 2) : '';
+      byId('case-error').hidden = true; byId('case-error').textContent = '';
+      byId('case-dialog').showModal(); byId('case-name').focus();
+    }
+    async function saveCase(event) {
+      event.preventDefault();
+      const errorBox = byId('case-error'), saveButton = byId('save-case'), caseId = byId('case-id').value, monitorId = byId('case-monitor-id').value;
+      let assertions;
+      try { assertions = JSON.parse(byId('case-assertions').value || '[]'); }
+      catch (_) { errorBox.textContent = 'Assertions must be valid JSON. Use [] if this case only checks the HTTP status.'; errorBox.hidden = false; return; }
+      if (!Array.isArray(assertions)) { errorBox.textContent = 'Assertions must be a JSON array.'; errorBox.hidden = false; return; }
+      if (assertions.length > 20) { errorBox.textContent = 'A test case can have at most 20 assertions.'; errorBox.hidden = false; return; }
+      const payload = {name: byId('case-name').value.trim(), url: byId('case-url').value.trim(), expected_status: Number(byId('case-status').value), timeout_seconds: Number(byId('case-timeout').value), latency_threshold_ms: byId('case-latency').value === '' ? null : Number(byId('case-latency').value), assertions, is_active: byId('case-active').checked};
+      if (!payload.name) { errorBox.textContent = 'Enter a name for this test case.'; errorBox.hidden = false; return; }
+      errorBox.hidden = true; saveButton.disabled = true; saveButton.textContent = 'Saving…';
+      try {
+        await req(caseId ? '/test-cases/' + caseId : '/monitors/' + monitorId + '/test-cases', caseId ? 'PATCH' : 'POST', payload);
+        byId('case-dialog').close(); await showDetail(monitorId); byId('msg').textContent = 'Test case saved';
+      } catch (error) { errorBox.textContent = error.message; errorBox.hidden = false; }
+      finally { saveButton.disabled = false; saveButton.textContent = 'Save test case'; }
+    }
+    async function runCase(caseId, monitorId) {
+      try { const result = await req('/test-cases/' + caseId + '/run', 'POST'); await showDetail(monitorId); byId('msg').textContent = 'Test case finished: ' + result.outcome; }
+      catch (error) { byId('msg').textContent = error.message; }
+    }
+    async function showCaseHistory(caseId) {
+      const panel = byId('case-history'); panel.innerHTML = '<p class="muted">Loading test case history…</p>';
+      try {
+        const result = await req('/test-cases/' + caseId + '/results?limit=50');
+        panel.innerHTML = '<h3>Test case run history</h3>' + (result.items.length ? '<div class="scroll"><table><thead><tr><th>Checked</th><th>Outcome</th><th>HTTP</th><th>Latency</th><th>Assertions</th><th>Details</th></tr></thead><tbody>' + result.items.map(item => '<tr><td>' + date(item.checked_at) + '</td><td><span class="badge ' + esc(item.outcome.toLowerCase()) + '">' + esc(item.outcome) + '</span></td><td>' + (item.http_status ?? '—') + '</td><td>' + (item.latency_ms ?? '—') + ' ms</td><td>' + item.assertions_passed + '/' + item.assertions_total + '</td><td>' + esc(item.error_message || item.error_type || '—') + '</td></tr>').join('') + '</tbody></table></div>' : '<p class="muted">No runs recorded yet.</p>');
+      } catch (error) { panel.textContent = error.message; }
+    }
+    async function deleteCase(caseId, monitorId) {
+      if (!window.confirm('Delete this test case and its run history?')) return;
+      try { await req('/test-cases/' + caseId, 'DELETE'); await showDetail(monitorId); }
+      catch (error) { byId('msg').textContent = error.message; }
     }
     function latencyChart(items) {
       const points = items.filter(item => item.latency_ms !== null).slice(0, 50).reverse();
