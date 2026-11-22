@@ -97,6 +97,7 @@
     .form-error{background:#442a36;border-color:#694052;color:#f38ba8}.success{background:#263b35;border-color:#38594b;color:#a6e3a1}.empty{color:#a6adc8}#msg{color:#cba6f7}
     dialog{background:#242436;color:#cdd6f4;border-color:#585b70;box-shadow:0 20px 70px #11111bcc}dialog h2{color:#cdd6f4}dialog::backdrop{background:#11111bcc}.dashboard-view .chart line{stroke:#585b70}
     .ai-chat-context{display:grid;grid-template-columns:minmax(220px,1fr) minmax(220px,1fr);gap:14px;margin:0 0 16px}.ai-chat-context .edit-field{margin:0}.ai-chat-messages{display:flex;flex-direction:column;gap:12px;max-height:480px;min-height:180px;overflow:auto;padding:16px;margin:0 0 16px;border:1px solid #45475a;border-radius:16px;background:#181825;scroll-behavior:smooth}.ai-chat-messages>.empty{margin:auto;text-align:center}.chat-message{width:min(88%,760px);margin:0;padding:14px 16px;border-radius:15px;box-shadow:none}.chat-message.assistant-message{align-self:flex-start;background:#313244;border:1px solid #45475a;border-top-left-radius:5px}.chat-message.user-message{align-self:flex-end;background:#39334d;border:1px solid #51446c;border-top-right-radius:5px}.chat-message-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.chat-message-head strong{font-size:12px;color:#cba6f7}.user-message .chat-message-head strong{color:#e3d0ff}.chat-message-head small{font-size:10px;text-align:right}.chat-message p{margin:9px 0 0;color:#cdd6f4;line-height:1.65;overflow-wrap:anywhere}.user-message p{color:#e5def5}#ai-assist-form{display:flex;flex-direction:column;align-items:stretch;gap:8px}#ai-assist-form .edit-field{margin:0}#ai-assist-form textarea{width:100%;resize:vertical}#ai-assist-form>.muted{margin:0;font-size:12px}#ai-assist-form button{align-self:flex-end;min-width:150px}
+    .ai-chat-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 8px}.ai-chat-toolbar .muted{margin:0;font-size:12px}.ai-chat-toolbar button{min-height:34px;padding:6px 12px;font-size:12px}.ai-chat-toolbar button:disabled{opacity:.45}.chat-welcome{max-width:680px;margin:auto;text-align:center;padding:14px 10px}.chat-welcome-icon{display:grid;width:42px;height:42px;place-items:center;margin:0 auto 10px;border-radius:14px;background:#39334d;color:#cba6f7;font-size:21px}.chat-welcome h3{margin:0 0 6px;color:#e3d0ff;font-size:17px}.chat-welcome>p{max-width:540px;margin:0 auto 16px;color:#a6adc8;font-size:13px}.chat-suggestions{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}.chat-suggestions button{min-height:34px;padding:7px 11px;border-color:#51446c;background:#29283c;color:#d8c9f2;font-size:11px;white-space:normal}.chat-suggestions button:hover{background:#39334d;border-color:#77649a;color:#fff}
     @media(max-width:650px){.ai-chat-context{grid-template-columns:1fr;gap:8px}.ai-chat-messages{min-height:150px;max-height:58vh;padding:10px}.chat-message{width:96%;padding:12px}.chat-message-head{align-items:flex-start;flex-direction:column;gap:3px}.chat-message-head small{text-align:left}#ai-assist-form button{width:100%}}
   </style>
 </head>
@@ -167,6 +168,7 @@
         <label class="edit-field">Monitor conversation<select id="ai-monitor" aria-label="Select a monitor for this AI chat" onchange="loadAIChatHistory()"><option value="">Choose a monitor to open its chat history…</option></select></label>
         <label class="edit-field">Incident context (optional)<select id="ai-incident" onchange="syncAIIncidentMonitor()"><option value="">General monitor help</option></select></label>
       </div>
+      <div class="ai-chat-toolbar"><span class="muted">Saved conversation for the selected monitor</span><button id="ai-clear-chat" class="secondary" type="button" onclick="clearAIChat()" disabled>Clear chat</button></div>
       <div id="ai-chat-messages" class="ai-chat-messages" aria-live="polite" aria-label="AI conversation"><p class="empty">Choose a monitor to see its saved conversation and ask a question.</p></div>
       <form id="ai-assist-form" onsubmit="askAIAssist(event)">
         <label class="edit-field" for="ai-question">Ask a follow-up question</label>
@@ -322,15 +324,37 @@
     function renderAIChat(messages) {
       const box = byId('ai-chat-messages');
       if (!messages.length) {
-        box.innerHTML = '<p class="empty">No chat history for this monitor yet. Ask a question to start.</p>';
+        box.innerHTML = '<div class="chat-welcome"><span class="chat-welcome-icon" aria-hidden="true">✦</span><h3>Ask AI Assist about this monitor</h3><p>Start with a question, then ask follow-ups. I can explain recent checks, statuses, incidents, and safe troubleshooting steps.</p><div class="chat-suggestions"><button type="button" class="secondary" onclick="useAIQuestion(this)">Why is this monitor showing its current status?</button><button type="button" class="secondary" onclick="useAIQuestion(this)">What should I check first if this endpoint is failing?</button><button type="button" class="secondary" onclick="useAIQuestion(this)">Explain the latest check result in simple terms.</button></div></div>';
         return;
       }
       box.innerHTML = messages.map(message => '<article class="chat-message ' + (message.role === 'assistant' ? 'assistant-message' : 'user-message') + '"><div class="chat-message-head"><strong>' + (message.role === 'assistant' ? 'SentinelAPI AI' : 'You') + '</strong><small>' + (message.model ? esc(message.model) + ' · ' : '') + esc(date(message.created_at)) + '</small></div><p>' + esc(message.content).replace(/\n/g, '<br>') + '</p></article>').join('');
       box.scrollTop = box.scrollHeight;
     }
+    function useAIQuestion(button) {
+      byId('ai-question').value = button.textContent;
+      byId('ai-question').focus();
+    }
+    async function clearAIChat() {
+      const monitorId = byId('ai-monitor').value;
+      if (!monitorId || !confirm('Delete all saved AI Assist messages for this monitor? This cannot be undone.')) return;
+      const button = byId('ai-clear-chat');
+      let cleared = false;
+      button.disabled = true; button.textContent = 'Clearing…';
+      try {
+        await req('/monitors/' + encodeURIComponent(monitorId) + '/ai-chat', 'DELETE');
+        cleared = true;
+        if (byId('ai-monitor').value === monitorId) renderAIChat([]);
+        byId('msg').textContent = 'AI chat history cleared for this monitor';
+      } catch (error) {
+        byId('ai-assist-error').textContent = error.message; byId('ai-assist-error').hidden = false;
+      } finally {
+        button.textContent = 'Clear chat';
+        button.disabled = cleared || !byId('ai-monitor').value;
+      }
+    }
     async function loadAIChatHistory() {
-      const monitorId = byId('ai-monitor').value, question = byId('ai-question'), send = byId('ai-assist-button');
-      question.disabled = true; send.disabled = true;
+      const monitorId = byId('ai-monitor').value, question = byId('ai-question'), send = byId('ai-assist-button'), clear = byId('ai-clear-chat');
+      question.disabled = true; send.disabled = true; clear.disabled = true;
       renderAIIncidentPicker(incidentCache);
       if (!monitorId) {
         byId('ai-chat-messages').innerHTML = '<p class="empty">Choose a monitor to see its saved conversation and ask a question.</p>';
@@ -339,9 +363,9 @@
       byId('ai-chat-messages').innerHTML = '<p class="empty">Loading saved conversation…</p>';
       try {
         const history = await req('/monitors/' + encodeURIComponent(monitorId) + '/ai-chat');
-        if (byId('ai-monitor').value === monitorId) renderAIChat(history.items);
+        if (byId('ai-monitor').value === monitorId) { renderAIChat(history.items); clear.disabled = history.items.length === 0; }
       } catch (error) {
-        if (byId('ai-monitor').value === monitorId) byId('ai-chat-messages').innerHTML = '<p class="form-error">' + esc(error.message) + '</p>';
+        if (byId('ai-monitor').value === monitorId) { byId('ai-chat-messages').innerHTML = '<p class="form-error">' + esc(error.message) + '</p>'; clear.disabled = true; }
       } finally {
         if (byId('ai-monitor').value === monitorId) { question.disabled = false; send.disabled = false; }
       }

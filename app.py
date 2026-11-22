@@ -936,6 +936,14 @@ def ai_chat_history(mid: str, uid=Depends(current_user)):
     return {"items": [dict(message) for message in messages]}
 
 
+@app.delete("/api/v1/monitors/{mid}/ai-chat")
+def delete_ai_chat_history(mid: str, uid=Depends(current_user)):
+    owned_monitor(mid, uid)
+    with db() as c:
+        cursor = c.execute("DELETE FROM ai_chat_messages WHERE owner_id=? AND monitor_id=?", (uid, mid))
+    return {"deleted": cursor.rowcount}
+
+
 @app.post("/api/v1/incidents/{iid}/acknowledge")
 def acknowledge(iid: str, uid=Depends(current_user)):
     with db() as c:
