@@ -217,7 +217,7 @@
     async function toggleMonitor(id) {
       const monitor = monitorCache.find(item => item.id === id); if (!monitor) return;
       try {
-        await req('/monitors/' + id, 'PATCH', {name: monitor.name, url: monitor.url, interval_seconds: monitor.interval_seconds, timeout_seconds: monitor.timeout_seconds, expected_status: monitor.expected_status, expected_statuses: monitor.expected_statuses ? JSON.parse(monitor.expected_statuses) : [monitor.expected_status], latency_threshold_ms: monitor.latency_threshold_ms, is_active: !monitor.is_active, schedule_mode: monitor.schedule_mode || 'interval', schedule_time: monitor.schedule_time, schedule_at: monitor.schedule_at, schedule_timezone: monitor.schedule_timezone || 'UTC'});
+        await req('/monitors/' + id, 'PATCH', {name: monitor.name, url: monitor.url, interval_seconds: monitor.interval_seconds, timeout_seconds: monitor.timeout_seconds, expected_status: monitor.expected_status, expected_statuses: monitor.expected_statuses || [monitor.expected_status], latency_threshold_ms: monitor.latency_threshold_ms, is_active: !monitor.is_active, schedule_mode: monitor.schedule_mode || 'interval', schedule_time: monitor.schedule_time, schedule_at: monitor.schedule_at, schedule_timezone: monitor.schedule_timezone || 'UTC'});
         await load();
       } catch (error) { byId('msg').textContent = error.message; }
     }
@@ -225,7 +225,7 @@
       const monitor = monitorCache.find(item => item.id === id); if (!monitor) return;
       byId('edit-id').value = monitor.id; byId('edit-name').value = monitor.name; byId('edit-url').value = monitor.url;
       byId('edit-interval').value = monitor.interval_seconds; byId('edit-timeout').value = monitor.timeout_seconds;
-      const statuses = typeof monitor.expected_statuses === 'string' ? JSON.parse(monitor.expected_statuses) : (monitor.expected_statuses || [monitor.expected_status]);
+      const statuses = monitor.expected_statuses || [monitor.expected_status];
       byId('edit-statuses').value = statuses.join(', '); byId('edit-latency').value = monitor.latency_threshold_ms ?? '';
       byId('edit-schedule').value = monitor.schedule_mode || 'interval'; byId('edit-schedule-time').value = monitor.schedule_time || '';
       if (monitor.schedule_at) { const local = new Date(monitor.schedule_at); local.setMinutes(local.getMinutes() - local.getTimezoneOffset()); byId('edit-schedule-at').value = local.toISOString().slice(0, 16); } else byId('edit-schedule-at').value = '';

@@ -338,7 +338,12 @@ def owned_monitor(mid, uid):
         row = c.execute("SELECT * FROM monitors WHERE id=? AND owner_id=?", (mid, uid)).fetchone()
     if not row:
         raise HTTPException(404, "Monitor not found")
-    return dict(row)
+    return serialize_monitor(dict(row))
+
+
+def serialize_monitor(monitor):
+    monitor["expected_statuses"] = json.loads(monitor.get("expected_statuses") or f'[{monitor["expected_status"]}]')
+    return monitor
 
 
 def owned_test_case(case_id, uid):
@@ -416,7 +421,7 @@ def list_monitors(uid=Depends(current_user)):
     with db() as c:
         rows = c.execute("SELECT * FROM monitors WHERE owner_id=? ORDER BY created_at DESC", (uid,)).fetchall()
         incidents = c.execute("SELECT COUNT(*) n FROM incidents i JOIN monitors m ON i.monitor_id=m.id WHERE m.owner_id=? AND i.status='OPEN'", (uid,)).fetchone()["n"]
-    return {"items": [dict(x) for x in rows], "open_incidents": incidents}
+    return {"items": [serialize_monitor(dict(x)) for x in rows], "open_incidents": incidents}
 
 
 @app.post("/api/v1/monitors", status_code=201)

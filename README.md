@@ -12,7 +12,7 @@ cp .env.example .env
 python -m uvicorn app:app --reload
 ```
 
-Open <http://localhost:8000>, create an account with a password of at least 10 characters, and add a public HTTP(S) GET endpoint. The dashboard includes status totals, search and status filters, editing, pause/resume and delete controls, plus incident acknowledgement and resolution. Edit a monitor to schedule checks at its interval, daily at a selected local time, once at a selected local date and time, or never; manual checks remain available. Select a monitor name to open its recent check history and response-time chart. API docs are at `/docs`; liveness and database readiness are `/health` and `/ready`. Data is stored in `sentinelapi.db` by default. Active monitors are checked on their configured schedule.
+Open <http://localhost:8000>, create an account with a password of at least 10 characters, and add a public HTTP(S) GET endpoint. Monitors accept one or more expected HTTP status codes; a check passes if the response matches any accepted code. Edit a monitor to set these codes and schedule checks at its interval, daily at a selected local time, once at a selected local date and time, or never; manual checks remain available. The dashboard also includes status totals, search and status filters, pause/resume and delete controls, incident acknowledgement and resolution, and monitor history with response-time charts. API docs are at `/docs`; liveness and database readiness are `/health` and `/ready`. Data is stored in `sentinelapi.db` by default. Active monitors are checked on their configured schedule.
 
 ## Docker and Grafana
 
