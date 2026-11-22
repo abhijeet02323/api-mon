@@ -47,6 +47,7 @@
       <button class="secondary" data-view="monitors" onclick="showView('monitors')">Monitors</button>
       <button class="secondary" data-view="history" onclick="showView('history')">Monitor history</button>
       <button class="secondary" data-view="incidents" onclick="showView('incidents')">Incidents <span id="incident-nav-count">0</span></button>
+      <button class="secondary" data-view="ai-assist" onclick="showView('ai-assist')">AI Assist</button>
     </nav>
     <section id="view-overview" class="dashboard-view">
       <div class="cards" aria-live="polite"><div class="card"><span>Total monitors</span><strong id="stat-total">0</strong></div><div class="card"><span>Up</span><strong id="stat-up">0</strong></div><div class="card"><span>Degraded</span><strong id="stat-degraded">0</strong></div><div class="card"><span>Down</span><strong id="stat-down">0</strong></div><div class="card"><span>Open incidents</span><strong id="stat-incidents">0</strong></div></div>
@@ -72,6 +73,17 @@
     <section id="view-incidents" class="dashboard-view" hidden>
       <div class="toolbar"><div class="toolbar-copy"><h2>Incidents</h2><p class="muted">Investigate and resolve monitor issues. Generate an optional Nova Micro analysis from incident and recent check data.</p></div></div>
       <div id="incidents"></div>
+    </section>
+    <section id="view-ai-assist" class="dashboard-view" hidden>
+      <div class="toolbar"><div class="toolbar-copy"><h2>AI Assist</h2><p class="muted">Ask for help understanding SentinelAPI, monitor statuses, or troubleshooting an incident. Answers use Amazon Nova Micro.</p></div></div>
+      <form id="ai-assist-form" onsubmit="askAIAssist(event)">
+        <label class="edit-field">Incident context (optional)<select id="ai-incident"><option value="">General SentinelAPI help</option></select></label>
+        <label class="edit-field">What do you need help with?<textarea id="ai-question" rows="4" required maxlength="1200" placeholder="For example: Why did this check become TIMEOUT, and what should I investigate first?"></textarea></label>
+        <p class="muted">Do not include passwords, API keys, or other secrets. AI suggestions are based only on supplied monitor data and may need verification.</p>
+        <p id="ai-assist-error" class="form-error" role="alert" hidden></p>
+        <button id="ai-assist-button" type="submit">Ask AI Assist</button>
+      </form>
+      <div id="ai-assist-answer" class="ai-summary" hidden aria-live="polite"></div>
     </section>
   </section>
   <dialog id="monitor-dialog" aria-labelledby="edit-title">
@@ -148,7 +160,7 @@
     const date = value => value ? new Date(value).toLocaleString() : '—';
     const incidentAge = (start, end) => { const seconds = Math.max(0, Math.floor((new Date(end || Date.now()) - new Date(start)) / 1000)); const days = Math.floor(seconds / 86400), hours = Math.floor(seconds % 86400 / 3600), minutes = Math.floor(seconds % 3600 / 60); return days ? days + 'd ' + hours + 'h' : hours ? hours + 'h ' + minutes + 'm' : minutes + 'm'; };
     function showView(name) {
-      ['overview', 'monitors', 'history', 'incidents'].forEach(view => {
+      ['overview', 'monitors', 'history', 'incidents', 'ai-assist'].forEach(view => {
         byId('view-' + view).hidden = view !== name;
         const button = document.querySelector('.view-nav [data-view="' + view + '"]');
         button.classList.toggle('active', view === name);
@@ -171,6 +183,23 @@
         return;
       }
       showDetail(id);
+    }
+    function updateAIIncidentPicker(items) {
+      const picker = byId('ai-incident'), selected = picker.value;
+      picker.innerHTML = '<option value="">General SentinelAPI help</option>' + items.map(i => '<option value="' + esc(i.id) + '">' + esc(i.monitor_name || 'Monitor') + ' · ' + esc(i.title) + ' · ' + esc(i.status) + '</option>').join('');
+      picker.value = items.some(i => i.id === selected) ? selected : '';
+    }
+    async function askAIAssist(event) {
+      event.preventDefault();
+      const button = byId('ai-assist-button'), errorBox = byId('ai-assist-error'), answerBox = byId('ai-assist-answer');
+      errorBox.hidden = true; errorBox.textContent = ''; answerBox.hidden = true; answerBox.textContent = '';
+      button.disabled = true; button.textContent = 'Asking Nova Micro…';
+      try {
+        const result = await req('/ai/assist', 'POST', {question: byId('ai-question').value.trim(), incident_id: byId('ai-incident').value || null});
+        answerBox.innerHTML = '<strong>AI Assist · ' + esc(result.model) + '</strong><p>' + esc(result.answer).replace(/\n/g, '<br>') + '</p><small>Generated from the available app and incident data. Verify recommended actions before applying them.</small>';
+        answerBox.hidden = false;
+      } catch (error) { errorBox.textContent = error.message; errorBox.hidden = false; }
+      finally { button.disabled = false; button.textContent = 'Ask AI Assist'; }
     }
 
     async function auth(mode, event) {
@@ -293,6 +322,7 @@
         updateHistoryPicker();
         renderMonitors();
         const incidentsData = await req('/incidents');
+        updateAIIncidentPicker(incidentsData.items);
         const openIncidents = incidentsData.items.filter(i => i.status === 'OPEN').length;
         byId('stat-incidents').textContent = openIncidents;
         byId('incident-nav-count').textContent = openIncidents;
