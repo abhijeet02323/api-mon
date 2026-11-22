@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SentinelAPI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0&display=swap" rel="stylesheet">
   <style>
     :root{color-scheme:dark;--bg:#080b09;--surface:#111512;--surface-raised:#171c18;--line:#29312b;--text:#f4f7f3;--muted:#a1aaa2;--green:#39d98a;--green-dark:#143c29;--green-hover:#24bd72;--danger:#ff7777;--amber:#f4c35e}
     *{box-sizing:border-box}body{font:15px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:radial-gradient(ellipse at 50% -25%,#173221 0,transparent 42%),var(--bg);color:var(--text);max-width:1240px;min-height:100vh;margin:0 auto;padding:32px 28px 64px}
@@ -41,6 +44,60 @@
     @media(max-width:1100px){body{padding:18px 20px 36px}#main.dashboard-shell{grid-template-columns:205px minmax(0,1fr);gap:17px}.dashboard-view{padding:18px}.cards{gap:7px}.card{padding:13px}.overview-monitor{grid-template-columns:minmax(130px,1fr) 95px 80px minmax(120px,1fr) auto;gap:8px}}
     @media(max-width:820px){#main.dashboard-shell{grid-template-columns:1fr;gap:13px}.dashboard-sidebar{position:relative;top:auto;min-height:0;padding:11px 12px}.sidebar-brand{padding:1px 4px 10px}.sidebar-label,.sidebar-bottom{display:none}.view-nav{flex-direction:row;overflow-x:auto;padding-bottom:2px}.view-nav button{width:auto;min-width:max-content;min-height:39px;padding:7px 10px}.view-nav button span.nav-icon{display:none}.workspace-toolbar{padding:3px 2px 15px}.overview-monitor{grid-template-columns:minmax(130px,1fr) 95px 80px auto}.overview-last-check{display:none}.overview-check{justify-self:end}}
     @media(max-width:560px){body{padding:12px 11px 28px}.app-header{margin-bottom:12px}.app-header h1{font-size:22px}.app-header .live-label{font-size:0}.dashboard-sidebar{border-radius:13px}.sidebar-brand{padding-bottom:9px}.brand-mark{width:30px;height:30px}.workspace-toolbar{align-items:flex-start;flex-direction:column;gap:10px}.workspace-toolbar h2{font-size:21px}.workspace-actions{width:100%}.workspace-actions button{flex:1}.dashboard-view{padding:14px;border-radius:13px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.card{min-height:85px;padding:12px}.card strong{font-size:24px;margin-top:8px}.card:first-child{grid-column:span 2}.overview-panel{padding:13px}.panel-head{align-items:flex-start}.panel-head button{white-space:nowrap}.overview-monitor{grid-template-columns:minmax(0,1fr) auto auto;gap:7px;padding:11px 2px}.overview-monitor-name{grid-column:1/2}.overview-monitor .badge{grid-column:2;grid-row:1}.overview-latency{grid-column:3;grid-row:1}.overview-last-check{display:block;grid-column:1/3;padding-left:18px}.overview-check{grid-column:3;grid-row:2}.dashboard-view .toolbar{gap:9px}.dashboard-view .toolbar>div{width:100%}.dashboard-view .toolbar .filters{display:grid!important;grid-template-columns:1fr;width:100%}.filters input,.filters select{width:100%;min-width:0}.history-picker{width:100%;align-items:stretch;flex-direction:column}.history-picker select{width:100%;min-width:0}#add-monitor-form,.edit-grid{grid-template-columns:1fr}.table-actions{flex-wrap:wrap}.dashboard-view .summary span{min-width:100%}}
+    :root{color-scheme:light;--bg:#f4f7f4;--surface:#fff;--surface-raised:#fbfcfb;--line:#dfe7e0;--text:#26352b;--muted:#6c7a70;--green:#347957;--green-dark:#e3f1e7;--green-hover:#286646;--danger:#b94e46;--amber:#9a721e}
+    html,body,input,select,button,textarea,code{font-family:"Open Sans",Arial,sans-serif}body{font-size:14px;line-height:1.55;color:var(--text);background:radial-gradient(ellipse at 77% -15%,#e6f0e7 0,transparent 37%),var(--bg)}.edit-field textarea{font-family:"Open Sans",Arial,sans-serif}
+    h1,h2,h3{color:#26372c;font-weight:650;letter-spacing:-.025em}.app-header h1{font-weight:750;letter-spacing:-.035em}.app-header .muted{color:#758278}.eyebrow{color:#397557}.live-label{background:#fff;border-color:#dce7de;color:#596a5e}.live-label i{background:#478765;box-shadow:0 0 8px #47876555}
+    #auth-panel{background:linear-gradient(145deg,#fff,#f8fbf8);border-color:#dce6de;box-shadow:0 18px 54px #294c3210}section{background:#fff;border-color:#e1e8e2;box-shadow:0 12px 34px #273a2a09}section>section{background:#f8faf8;box-shadow:none}
+    input,select,button{color:var(--text);border-color:#d4dfd6;background:#fff}input::placeholder,textarea::placeholder{color:#929d94}input:hover,select:hover,textarea:hover{border-color:#9eafa2}input:focus,select:focus,textarea:focus{border-color:#468364;box-shadow:0 0 0 3px #46836420}button{background:#347957;border-color:#347957;color:#fff;font-weight:650}button:hover{background:#286646;border-color:#286646}.secondary{background:#fff;border-color:#d5dfd7;color:#405347}.secondary:hover{background:#f0f5f1;border-color:#b8c9bb;color:#2c4836}.link{color:#2e7452}.link:hover{color:#215d3f}
+    .dashboard-sidebar{background:linear-gradient(165deg,#fff,#f7faf7);border-color:#dce6dd;box-shadow:0 16px 44px #294c3209}.brand-mark{background:linear-gradient(145deg,#579574,#337655);color:#fff;box-shadow:0 5px 15px #34795725}.sidebar-brand small,.sidebar-label{color:#849188}.sidebar-ready{color:#6f7e73}.sidebar-ready i{background:#478765;box-shadow:0 0 8px #47876544}.view-nav button{color:#5c6b61}.view-nav button:hover{background:#f2f6f2;border-color:#e1e9e2;color:#2d4033}.view-nav button.active{background:#eaf3ec;border-color:#d8e8dc;color:#2e704e}.view-nav button span.nav-icon{background:#f0f4f0;color:#617369}.view-nav button.active span.nav-icon{background:#d9eadc;color:#377a56}.view-nav button span.nav-count{background:#f8f1e5;border-color:#eadcc3;color:#8b6825}
+    .workspace-toolbar .eyebrow{color:#78877c}.workspace-toolbar .eyebrow span:last-child{color:#347957}.workspace-toolbar h2{font-size:24px;font-weight:700}.workspace-toolbar .muted{color:#738177}.dashboard-view{background:linear-gradient(150deg,#fff,#fbfcfb);border-color:#e0e8e1;box-shadow:0 12px 32px #26392a08}.dashboard-view h2,.dashboard-view h3{color:#2a3b30}.dashboard-view .muted{color:#738177}
+    .cards .card{background:linear-gradient(145deg,#fff,#fbfdfb);border-color:#e1e8e2;box-shadow:0 5px 14px #203b2605}.card span{color:#738177}.card strong{color:#2c3e32;font-weight:700}.card:nth-child(2) strong{color:#347957}.card:nth-child(3) strong{color:#a17a28}.card:nth-child(4) strong,.card:nth-child(5) strong{color:#b7534a}.card:after{border-color:#31523a09;box-shadow:0 0 0 13px #31523a04,0 0 0 27px #31523a03}
+    .overview-panel{background:#f8faf8;border-color:#e1e9e2}.overview-monitor{border-color:#e8eee9}.overview-monitor-name small,.overview-last-check{color:#7c8980}.overview-latency{color:#45574a}.health-indicator.up{background:#478765;box-shadow:0 0 8px #47876544}.health-indicator.degraded{background:#d6a943}.health-indicator.down,.health-indicator.timeout,.health-indicator.error{background:#cf665c;box-shadow:0 0 8px #cf665c44}.empty-mark{background:#edf5ee;border-color:#d5e7d8;color:#347957}
+    #add-monitor-form{background:#f8faf8;border-color:#e1e8e2}.badge{background:#f0f3f0;border-color:#e0e6e1;color:#536258}.badge.up{background:#e7f3e9;border-color:#d4e8d8;color:#30764e}.badge.degraded{background:#fbf3df;border-color:#f0e3bc;color:#85651f}.badge.down,.badge.error,.badge.timeout,.badge.validation_failed{background:#fae9e7;border-color:#efd4d1;color:#a64640}.badge.paused{background:#eff2ef;border-color:#e0e5e1;color:#68756b}.badge.critical{background:#f9e8e5;color:#a64640;border-color:#edd2ce}.badge.warning{background:#fbf2df;color:#85651f;border-color:#ecdfbb}
+    .scroll{border-color:#e0e8e1}table{background:#fff}td,th{border-color:#e8eee9;color:#405046}th{background:#f4f7f4;color:#728076}tbody tr:hover{background:#f6f9f6}.endpoint-cell{color:#66756a}.table-subline{color:#7c8980}
+    article{background:#fff;border-color:#e1e8e2;box-shadow:0 6px 18px #26392a06}article p{color:#536258}.ai-summary{background:#f0f7f1;border-color:#d9e9dc;color:#2f4435}.ai-summary p{color:#435448}.form-error{background:#fbefed;border-color:#eed3cf;color:#a1433c}.success{background:#eaf5ec;border-color:#d2e8d7;color:#34724c}.empty{color:#78867b}.dashboard-view .chart{background:#f8faf8;border-color:#e0e8e1}.dashboard-view .chart line{stroke:#cbd6cd}.dashboard-view .chart polyline{stroke:#347957}
+    dialog{background:#fff;color:var(--text);border-color:#d8e2da;box-shadow:0 24px 80px #1e302555}dialog h2{color:#26372c}dialog::backdrop{background:#23332877}.edit-field{color:#405046}.edit-field input,.edit-field textarea{background:#fff;border-color:#d4dfd6;color:var(--text)}#msg{color:#347957;font-size:12px}
+    .workspace-toolbar h2,.dashboard-view>h2{font-weight:700}.dashboard-view>h2{font-size:18px}.dashboard-view .toolbar h2{font-size:17px}.panel-head h3{font-size:14px;font-weight:700}.card span{font-size:11.5px}.card strong{font-size:28px}.view-nav button{font-size:13px}.table-actions button,.overview-check{font-size:11px}.overview-monitor-name .link{font-size:12px}#ai-question{font-family:inherit;font-size:13px}
+    /* Material 3 inspired design tokens and component finishing */
+    :root{color-scheme:light;--bg:#f5f7fa;--surface:#fff;--surface-raised:#f8f9fc;--line:#dce2ea;--text:#1c2733;--muted:#637182;--green:#356b91;--green-dark:#e8f1f8;--green-hover:#285875;--danger:#ba1a1a;--amber:#805b12;--md-primary:#356b91;--md-on-primary:#fff;--md-container:#e8f1f8;--md-outline:#c5d0dc;--md-shadow:0 2px 8px #18283a0b,0 1px 3px #18283a08}
+    html,body,input,select,button,textarea,code{font-family:Roboto,"Open Sans",Arial,sans-serif}body{font-size:14px;line-height:1.55;color:var(--text);background:var(--bg)}
+    h1,h2,h3{color:#1c2733;letter-spacing:-.015em}h1{font-size:28px}h2{font-size:20px}h3{font-size:16px}.muted,small{color:var(--muted)}
+    .app-header{margin-bottom:22px}.app-header h1{font-weight:700}.app-header h1:before{background:var(--md-primary);box-shadow:none}.eyebrow{color:var(--md-primary);font-size:11px;letter-spacing:.1em}.live-label{background:#fff;border-color:var(--md-outline);color:#526274}.live-label i{background:#3b8067;box-shadow:0 0 0 4px #3b80671c}
+    #auth-panel,.dashboard-sidebar,.dashboard-view{background:#fff;border-color:var(--line);box-shadow:var(--md-shadow)}#auth-panel{border-radius:20px}.dashboard-sidebar{border-radius:18px}.dashboard-view{border-radius:18px}
+    .sidebar-brand strong{font-size:16px}.brand-mark{background:var(--md-primary);border-radius:12px;box-shadow:none}.sidebar-brand small,.sidebar-label{color:#738194}.sidebar-label{letter-spacing:.1em}.sidebar-ready{color:#657486}.sidebar-ready i{background:#3b8067;box-shadow:none}
+    .view-nav button{color:#526274;border-radius:12px;font-size:14px;font-weight:500}.view-nav button:hover{background:#f4f7fa;border-color:#e3e8ee;color:#253746}.view-nav button.active{background:var(--md-container);border-color:transparent;color:#234f6b;font-weight:600}.view-nav button span.nav-icon{background:#f1f4f8;color:#576a7c}.view-nav button.active span.nav-icon{background:#d5e5f1;color:#285b7b}.view-nav button span.nav-count{background:#fff1df;border-color:#f1dfc4;color:#805b12}
+    .workspace-toolbar{padding-top:9px}.workspace-toolbar .eyebrow{color:#69798a}.workspace-toolbar .eyebrow span:last-child{color:var(--md-primary)}.workspace-toolbar h2{font-size:26px;font-weight:600;letter-spacing:-.025em}.workspace-toolbar .muted{font-size:14px;color:var(--muted)}
+    .dashboard-view>h2{font-size:20px}.dashboard-view .toolbar h2{font-size:19px}.dashboard-view .toolbar .muted{font-size:13px}.panel-head h3{font-size:16px}.panel-head .muted{font-size:12px}
+    .cards .card{border-color:#e3e8ee;border-radius:16px;background:#fff;box-shadow:var(--md-shadow)}.card span{font-size:13px;color:#657486}.card strong{font-size:30px;color:#253746}.card:nth-child(2) strong{color:#34765e}.card:nth-child(3) strong{color:#946b1c}.card:nth-child(4) strong,.card:nth-child(5) strong{color:#b5473f}.card:after{display:none}
+    .overview-panel,#add-monitor-form{background:#f8f9fc;border-color:#e1e6ed;border-radius:16px}.overview-monitor{border-color:#e6eaf0}.overview-monitor-name .link{font-size:14px;font-weight:600}.overview-monitor-name small,.overview-last-check{font-size:11px}.overview-latency{font-size:13px}.empty-mark{background:var(--md-container);border-color:#d5e2eb;color:var(--md-primary)}
+    input,select,textarea{background:#fff;color:var(--text);border:1px solid var(--md-outline);border-radius:10px;min-height:44px;padding:10px 13px}input:hover,select:hover,textarea:hover{border-color:#8799aa}input:focus,select:focus,textarea:focus{border-color:var(--md-primary);box-shadow:0 0 0 3px #356b911f}button{min-height:40px;border-radius:10px;background:var(--md-primary);border-color:var(--md-primary);color:var(--md-on-primary);font-size:14px;font-weight:500;box-shadow:none}button:hover{background:var(--green-hover);border-color:var(--green-hover);transform:none}.secondary{background:#fff;border-color:var(--md-outline);color:#31556f}.secondary:hover{background:#f1f5f8;border-color:#aebdca;color:#274961}.link{color:var(--md-primary)}.link:hover{color:#234e69}.workspace-actions button{font-size:13px}
+    .edit-field{color:#415264;font-size:13px;font-weight:500}.dashboard-view .edit-field{font-size:13px}.edit-field textarea{font-family:Roboto,"Open Sans",Arial,sans-serif;font-size:13px}#ai-question{font-size:14px}#add-monitor-form{padding:16px}.filters input,.filters select{background:#fff}
+    .scroll{border-color:#dfe5ec;border-radius:14px;background:#fff}table{background:#fff}td,th{border-color:#e8edf2;color:#354657}td{font-size:13px}th{background:#f4f6f9;color:#657486;font-size:11px;letter-spacing:.06em}tbody tr:hover{background:#f7f9fb}.endpoint-cell{color:#536577}.table-subline{color:#738194}.table-actions button,.overview-check{font-size:12px}
+    .badge{border-radius:8px;font-size:11px;font-weight:600}.badge.up{background:#e8f4ed;border-color:#cfe7d8;color:#286346}.badge.degraded,.badge.warning{background:#fff4df;border-color:#f0dfbc;color:#805b12}.badge.down,.badge.error,.badge.timeout,.badge.validation_failed,.badge.critical{background:#fcebea;border-color:#f1d0ce;color:#a33b34}.badge.paused{background:#eef1f4;border-color:#e0e5eb;color:#586879}
+    article{border-color:#e1e6ed;border-radius:14px;background:#fff;box-shadow:var(--md-shadow)}article p{color:#4f6070}.ai-summary{background:#edf4f8;border-color:#d7e5ee;border-radius:14px;color:#304a5c}.ai-summary p{color:#40576a}
+    .dashboard-view .summary span{background:#f7f9fb;border-color:#e1e6ed;border-radius:12px;color:#657486}.dashboard-view .summary strong{color:#253746}.dashboard-view .chart{background:#f8f9fc;border-color:#e1e6ed;border-radius:14px}.dashboard-view .chart line{stroke:#cbd5df}.dashboard-view .chart polyline{stroke:var(--md-primary)}
+    .form-error{background:#fcebea;border-color:#f1d0ce;color:#a33b34;border-radius:10px}.success{background:#e8f4ed;border-color:#cfe7d8;color:#286346;border-radius:10px}.empty{color:#657486}
+    dialog{border-color:#d7dfe7;border-radius:20px;background:#fff;color:var(--text);box-shadow:0 16px 48px #1e2b3a30}dialog h2{font-size:22px}dialog::backdrop{background:#1c273355;backdrop-filter:blur(3px)}
+    @media(max-width:560px){.workspace-toolbar h2{font-size:23px}.dashboard-view>h2{font-size:19px}.dashboard-view .toolbar h2{font-size:18px}.card span{font-size:12px}.card strong{font-size:26px}}
+    /* Catppuccin Mocha palette */
+    :root{color-scheme:dark;--bg:#1e1e2e;--surface:#242436;--surface-raised:#313244;--line:#45475a;--text:#cdd6f4;--muted:#a6adc8;--green:#cba6f7;--green-dark:#39334d;--green-hover:#b4befe;--danger:#f38ba8;--amber:#f9e2af;--md-primary:#cba6f7;--md-on-primary:#1e1e2e;--md-container:#39334d;--md-outline:#585b70;--md-shadow:0 3px 12px #11111b66,0 1px 3px #11111b55}
+    body{color:var(--text);background:#1e1e2e}h1,h2,h3{color:#cdd6f4}.muted,small{color:#a6adc8}.eyebrow{color:#cba6f7}
+    .app-header h1:before,.brand-mark{background:#cba6f7;color:#1e1e2e}.live-label{background:#242436;border-color:#45475a;color:#bac2de}.live-label i{background:#a6e3a1;box-shadow:0 0 0 4px #a6e3a122}
+    #auth-panel,.dashboard-sidebar,.dashboard-view{background:#242436;border-color:#45475a;box-shadow:var(--md-shadow)}.dashboard-sidebar{background:#181825}.dashboard-view{background:#242436}.sidebar-brand small,.sidebar-label{color:#7f849c}.sidebar-ready{color:#a6adc8}.sidebar-ready i{background:#a6e3a1}
+    .view-nav button{color:#a6adc8}.view-nav button:hover{background:#313244;border-color:#45475a;color:#cdd6f4}.view-nav button.active{background:#39334d;color:#e3d0ff}.view-nav button span.nav-icon{background:#313244;color:#bac2de}.view-nav button.active span.nav-icon{background:#51446c;color:#e3d0ff}.view-nav button span.nav-count{background:#453927;border-color:#665438;color:#f9e2af}
+    .workspace-toolbar .eyebrow{color:#a6adc8}.workspace-toolbar .eyebrow span:last-child{color:#cba6f7}.workspace-toolbar h2{color:#cdd6f4}.workspace-toolbar .muted{color:#a6adc8}
+    .cards .card{background:#313244;border-color:#45475a;box-shadow:none}.card span{color:#a6adc8}.card strong{color:#cdd6f4}.card:nth-child(2) strong{color:#a6e3a1}.card:nth-child(3) strong{color:#f9e2af}.card:nth-child(4) strong,.card:nth-child(5) strong{color:#f38ba8}
+    .overview-panel,#add-monitor-form{background:#1e1e2e;border-color:#45475a}.overview-monitor{border-color:#313244}.overview-monitor-name small,.overview-last-check{color:#9399b2}.overview-latency{color:#bac2de}.empty-mark{background:#39334d;border-color:#58506e;color:#cba6f7}
+    input,select,textarea{background:#181825;color:#cdd6f4;border-color:#585b70}input::placeholder,textarea::placeholder{color:#7f849c}input:hover,select:hover,textarea:hover{border-color:#9399b2}input:focus,select:focus,textarea:focus{border-color:#cba6f7;box-shadow:0 0 0 3px #cba6f722}
+    button{background:#cba6f7;border-color:#cba6f7;color:#1e1e2e}button:hover{background:#b4befe;border-color:#b4befe}.secondary{background:#313244;border-color:#585b70;color:#cdd6f4}.secondary:hover{background:#45475a;border-color:#7f849c;color:#fff}.link{color:#cba6f7}.link:hover{color:#e3d0ff}
+    .edit-field{color:#bac2de}.edit-field input,.edit-field textarea{background:#181825;border-color:#585b70;color:#cdd6f4}.scroll{border-color:#45475a;background:#242436}table{background:#242436}td,th{border-color:#313244;color:#bac2de}th{background:#313244;color:#a6adc8}tbody tr:hover{background:#2b2b3d}.endpoint-cell{color:#bac2de}.table-subline{color:#9399b2}
+    .badge{background:#313244;border-color:#45475a;color:#bac2de}.badge.up{background:#263b35;border-color:#38594b;color:#a6e3a1}.badge.degraded,.badge.warning{background:#453927;border-color:#665438;color:#f9e2af}.badge.down,.badge.error,.badge.timeout,.badge.validation_failed,.badge.critical{background:#442a36;border-color:#694052;color:#f38ba8}.badge.paused{background:#313244;border-color:#45475a;color:#a6adc8}
+    article{background:#313244;border-color:#45475a;box-shadow:none}article p{color:#bac2de}.ai-summary{background:#29283c;border-color:#51446c;color:#cdd6f4}.ai-summary p{color:#bac2de}
+    .dashboard-view .summary span{background:#313244;border-color:#45475a;color:#a6adc8}.dashboard-view .summary strong{color:#cdd6f4}.dashboard-view .chart{background:#181825;border-color:#45475a}.dashboard-view .chart line{stroke:#585b70}.dashboard-view .chart polyline{stroke:#cba6f7}
+    .form-error{background:#442a36;border-color:#694052;color:#f38ba8}.success{background:#263b35;border-color:#38594b;color:#a6e3a1}.empty{color:#a6adc8}#msg{color:#cba6f7}
+    dialog{background:#242436;color:#cdd6f4;border-color:#585b70;box-shadow:0 20px 70px #11111bcc}dialog h2{color:#cdd6f4}dialog::backdrop{background:#11111bcc}.dashboard-view .chart line{stroke:#585b70}
+    .ai-chat-context{display:grid;grid-template-columns:minmax(220px,1fr) minmax(220px,1fr);gap:14px;margin:0 0 16px}.ai-chat-context .edit-field{margin:0}.ai-chat-messages{display:flex;flex-direction:column;gap:12px;max-height:480px;min-height:180px;overflow:auto;padding:16px;margin:0 0 16px;border:1px solid #45475a;border-radius:16px;background:#181825;scroll-behavior:smooth}.ai-chat-messages>.empty{margin:auto;text-align:center}.chat-message{width:min(88%,760px);margin:0;padding:14px 16px;border-radius:15px;box-shadow:none}.chat-message.assistant-message{align-self:flex-start;background:#313244;border:1px solid #45475a;border-top-left-radius:5px}.chat-message.user-message{align-self:flex-end;background:#39334d;border:1px solid #51446c;border-top-right-radius:5px}.chat-message-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.chat-message-head strong{font-size:12px;color:#cba6f7}.user-message .chat-message-head strong{color:#e3d0ff}.chat-message-head small{font-size:10px;text-align:right}.chat-message p{margin:9px 0 0;color:#cdd6f4;line-height:1.65;overflow-wrap:anywhere}.user-message p{color:#e5def5}#ai-assist-form{display:flex;flex-direction:column;align-items:stretch;gap:8px}#ai-assist-form .edit-field{margin:0}#ai-assist-form textarea{width:100%;resize:vertical}#ai-assist-form>.muted{margin:0;font-size:12px}#ai-assist-form button{align-self:flex-end;min-width:150px}
+    @media(max-width:650px){.ai-chat-context{grid-template-columns:1fr;gap:8px}.ai-chat-messages{min-height:150px;max-height:58vh;padding:10px}.chat-message{width:96%;padding:12px}.chat-message-head{align-items:flex-start;flex-direction:column;gap:3px}.chat-message-head small{text-align:left}#ai-assist-form button{width:100%}}
   </style>
 </head>
 <body>
@@ -106,14 +163,18 @@
     </section>
     <section id="view-ai-assist" class="dashboard-view" hidden>
       <div class="toolbar"><div class="toolbar-copy"><h2>AI Assist</h2><p class="muted">Ask for help understanding SentinelAPI, monitor statuses, or troubleshooting an incident. Answers use Amazon Nova Micro.</p></div></div>
+      <div class="ai-chat-context">
+        <label class="edit-field">Monitor conversation<select id="ai-monitor" aria-label="Select a monitor for this AI chat" onchange="loadAIChatHistory()"><option value="">Choose a monitor to open its chat history…</option></select></label>
+        <label class="edit-field">Incident context (optional)<select id="ai-incident" onchange="syncAIIncidentMonitor()"><option value="">General monitor help</option></select></label>
+      </div>
+      <div id="ai-chat-messages" class="ai-chat-messages" aria-live="polite" aria-label="AI conversation"><p class="empty">Choose a monitor to see its saved conversation and ask a question.</p></div>
       <form id="ai-assist-form" onsubmit="askAIAssist(event)">
-        <label class="edit-field">Incident context (optional)<select id="ai-incident"><option value="">General SentinelAPI help</option></select></label>
-        <label class="edit-field">What do you need help with?<textarea id="ai-question" rows="4" required maxlength="1200" placeholder="For example: Why did this check become TIMEOUT, and what should I investigate first?"></textarea></label>
-        <p class="muted">Do not include passwords, API keys, or other secrets. AI suggestions are based only on supplied monitor data and may need verification.</p>
+        <label class="edit-field" for="ai-question">Ask a follow-up question</label>
+        <textarea id="ai-question" rows="3" required maxlength="1200" placeholder="Ask a question or follow up on the previous answer…" disabled></textarea>
+        <p class="muted">Chat history is saved for the selected monitor. Do not include passwords, API keys, or other secrets. AI suggestions may need verification.</p>
         <p id="ai-assist-error" class="form-error" role="alert" hidden></p>
-        <button id="ai-assist-button" type="submit">Ask AI Assist</button>
+        <button id="ai-assist-button" type="submit" disabled>Send question</button>
       </form>
-      <div id="ai-assist-answer" class="ai-summary" hidden aria-live="polite"></div>
     </section>
     </div>
   </section>
@@ -165,6 +226,7 @@
   </dialog>
   <script>
     let monitorCache = [];
+    let incidentCache = [];
     let busyChecks = new Set();
     const byId = id => document.getElementById(id);
     const req = async (path, method, data) => {
@@ -235,21 +297,67 @@
       showDetail(id);
     }
     function updateAIIncidentPicker(items) {
-      const picker = byId('ai-incident'), selected = picker.value;
-      picker.innerHTML = '<option value="">General SentinelAPI help</option>' + items.map(i => '<option value="' + esc(i.id) + '">' + esc(i.monitor_name || 'Monitor') + ' · ' + esc(i.title) + ' · ' + esc(i.status) + '</option>').join('');
-      picker.value = items.some(i => i.id === selected) ? selected : '';
+      const monitorPicker = byId('ai-monitor'), monitorSelected = monitorPicker.value;
+      monitorPicker.innerHTML = '<option value="">Choose a monitor to open its chat history…</option>' + monitorCache.map(m => '<option value="' + esc(m.id) + '">' + esc(m.name) + '</option>').join('');
+      monitorPicker.value = monitorCache.some(m => m.id === monitorSelected) ? monitorSelected : '';
+      renderAIIncidentPicker(items);
+    }
+    function renderAIIncidentPicker(items) {
+      const picker = byId('ai-incident'), selected = picker.value, monitorId = byId('ai-monitor').value;
+      const matching = items.filter(i => i.monitor_id === monitorId);
+      picker.innerHTML = '<option value="">General monitor help</option>' + matching.map(i => '<option value="' + esc(i.id) + '">' + esc(i.title) + ' · ' + esc(i.status) + '</option>').join('');
+      picker.value = matching.some(i => i.id === selected) ? selected : '';
+    }
+    function syncAIIncidentMonitor() {
+      const incidentId = byId('ai-incident').value;
+      if (!incidentId) return;
+      const incident = incidentCache.find(item => item.id === incidentId);
+      if (incident && byId('ai-monitor').value !== incident.monitor_id) {
+        byId('ai-monitor').value = incident.monitor_id;
+        renderAIIncidentPicker(incidentCache);
+        byId('ai-incident').value = incidentId;
+        loadAIChatHistory();
+      }
+    }
+    function renderAIChat(messages) {
+      const box = byId('ai-chat-messages');
+      if (!messages.length) {
+        box.innerHTML = '<p class="empty">No chat history for this monitor yet. Ask a question to start.</p>';
+        return;
+      }
+      box.innerHTML = messages.map(message => '<article class="chat-message ' + (message.role === 'assistant' ? 'assistant-message' : 'user-message') + '"><div class="chat-message-head"><strong>' + (message.role === 'assistant' ? 'SentinelAPI AI' : 'You') + '</strong><small>' + (message.model ? esc(message.model) + ' · ' : '') + esc(date(message.created_at)) + '</small></div><p>' + esc(message.content).replace(/\n/g, '<br>') + '</p></article>').join('');
+      box.scrollTop = box.scrollHeight;
+    }
+    async function loadAIChatHistory() {
+      const monitorId = byId('ai-monitor').value, question = byId('ai-question'), send = byId('ai-assist-button');
+      question.disabled = true; send.disabled = true;
+      renderAIIncidentPicker(incidentCache);
+      if (!monitorId) {
+        byId('ai-chat-messages').innerHTML = '<p class="empty">Choose a monitor to see its saved conversation and ask a question.</p>';
+        return;
+      }
+      byId('ai-chat-messages').innerHTML = '<p class="empty">Loading saved conversation…</p>';
+      try {
+        const history = await req('/monitors/' + encodeURIComponent(monitorId) + '/ai-chat');
+        if (byId('ai-monitor').value === monitorId) renderAIChat(history.items);
+      } catch (error) {
+        if (byId('ai-monitor').value === monitorId) byId('ai-chat-messages').innerHTML = '<p class="form-error">' + esc(error.message) + '</p>';
+      } finally {
+        if (byId('ai-monitor').value === monitorId) { question.disabled = false; send.disabled = false; }
+      }
     }
     async function askAIAssist(event) {
       event.preventDefault();
-      const button = byId('ai-assist-button'), errorBox = byId('ai-assist-error'), answerBox = byId('ai-assist-answer');
-      errorBox.hidden = true; errorBox.textContent = ''; answerBox.hidden = true; answerBox.textContent = '';
-      button.disabled = true; button.textContent = 'Asking Nova Micro…';
+      const button = byId('ai-assist-button'), errorBox = byId('ai-assist-error'), monitorId = byId('ai-monitor').value;
+      errorBox.hidden = true; errorBox.textContent = '';
+      if (!monitorId) { errorBox.textContent = 'Choose a monitor before sending a question.'; errorBox.hidden = false; return; }
+      button.disabled = true; button.textContent = 'Thinking…';
       try {
-        const result = await req('/ai/assist', 'POST', {question: byId('ai-question').value.trim(), incident_id: byId('ai-incident').value || null});
-        answerBox.innerHTML = '<strong>AI Assist · ' + esc(result.model) + '</strong><p>' + esc(result.answer).replace(/\n/g, '<br>') + '</p><small>Generated from the available app and incident data. Verify recommended actions before applying them.</small>';
-        answerBox.hidden = false;
+        await req('/ai/assist', 'POST', {question: byId('ai-question').value.trim(), monitor_id: monitorId, incident_id: byId('ai-incident').value || null});
+        byId('ai-question').value = '';
+        await loadAIChatHistory();
       } catch (error) { errorBox.textContent = error.message; errorBox.hidden = false; }
-      finally { button.disabled = false; button.textContent = 'Ask AI Assist'; }
+      finally { button.disabled = !byId('ai-monitor').value; button.textContent = 'Send question'; }
     }
 
     async function auth(mode, event) {
@@ -373,6 +481,7 @@
         renderOverviewMonitors();
         renderMonitors();
         const incidentsData = await req('/incidents');
+        incidentCache = incidentsData.items;
         updateAIIncidentPicker(incidentsData.items);
         const openIncidents = incidentsData.items.filter(i => i.status === 'OPEN').length;
         byId('stat-incidents').textContent = openIncidents;
