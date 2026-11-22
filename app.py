@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
 from urllib.parse import parse_qsl, urlsplit
 from uuid import uuid4
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from assertions import assertion_passes, json_path_value, validate_json_path
 from scenario_utils import ScenarioConfigError, resolve_scenario_text, validate_extractions, validate_headers
@@ -65,7 +66,7 @@ def init_db():
         c.executescript("""
         CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,email TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL,created_at TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,created_at TEXT NOT NULL,expires_at TEXT);
-        CREATE TABLE IF NOT EXISTS monitors(id TEXT PRIMARY KEY,owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,name TEXT NOT NULL,url TEXT NOT NULL,interval_seconds INTEGER NOT NULL,timeout_seconds INTEGER NOT NULL,expected_status INTEGER NOT NULL,latency_threshold_ms INTEGER,is_active INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,last_checked_at TEXT,last_status TEXT,last_latency_ms REAL);
+        CREATE TABLE IF NOT EXISTS monitors(id TEXT PRIMARY KEY,owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,name TEXT NOT NULL,url TEXT NOT NULL,interval_seconds INTEGER NOT NULL,timeout_seconds INTEGER NOT NULL,expected_status INTEGER NOT NULL,latency_threshold_ms INTEGER,is_active INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,last_checked_at TEXT,last_status TEXT,last_latency_ms REAL,schedule_mode TEXT NOT NULL DEFAULT 'interval',schedule_time TEXT,schedule_at TEXT,schedule_timezone TEXT NOT NULL DEFAULT 'UTC',expected_statuses TEXT NOT NULL DEFAULT '[200]');
         CREATE INDEX IF NOT EXISTS idx_monitors_owner ON monitors(owner_id);
         CREATE TABLE IF NOT EXISTS results(id TEXT PRIMARY KEY,monitor_id TEXT NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,checked_at TEXT NOT NULL,outcome TEXT NOT NULL,http_status INTEGER,latency_ms REAL,error_type TEXT,error_message TEXT);
         CREATE INDEX IF NOT EXISTS idx_results_monitor_time ON results(monitor_id,checked_at DESC);
@@ -78,6 +79,10 @@ def init_db():
         """)
         case_columns = {row[1] for row in c.execute("PRAGMA table_info(test_cases)")}
         session_columns = {row[1] for row in c.execute("PRAGMA table_info(sessions)")}
+        monitor_columns = {row[1] for row in c.execute("PRAGMA table_info(monitors)")}
+        for name, declaration in (("schedule_mode", "TEXT NOT NULL DEFAULT 'interval'"), ("schedule_time", "TEXT"), ("schedule_at", "TEXT"), ("schedule_timezone", "TEXT NOT NULL DEFAULT 'UTC'"), ("expected_statuses", "TEXT NOT NULL DEFAULT '[200]'")):
+            if name not in monitor_columns:
+                c.execute(f"ALTER TABLE monitors ADD COLUMN {name} {declaration}")
         if "expires_at" not in session_columns:
             c.execute("ALTER TABLE sessions ADD COLUMN expires_at TEXT")
         c.execute("UPDATE sessions SET expires_at=? WHERE expires_at IS NULL", ((datetime.fromisoformat(now()) + SESSION_TTL).isoformat(),))
@@ -154,14 +159,42 @@ class MonitorInput(BaseModel):
     interval_seconds: int = Field(default=60, ge=MIN_INTERVAL, le=86400)
     timeout_seconds: int = Field(default=5, ge=1, le=MAX_TIMEOUT)
     expected_status: int = Field(default=200, ge=100, le=599)
+    expected_statuses: list[int] | None = Field(default=None, min_length=1, max_length=20)
     latency_threshold_ms: int | None = Field(default=None, ge=1, le=120000)
     is_active: bool = True
+    schedule_mode: Literal["interval", "daily", "once", "never"] = "interval"
+    schedule_time: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    schedule_at: str | None = Field(default=None, max_length=40)
+    schedule_timezone: str = Field(default="UTC", min_length=1, max_length=100)
 
     @field_validator("url")
     @classmethod
     def valid_target(cls, v):
         safe_url(v)
         return v
+
+    @model_validator(mode="after")
+    def valid_schedule(self):
+        if self.expected_statuses is not None:
+            if any(code < 100 or code > 599 for code in self.expected_statuses):
+                raise ValueError("Accepted HTTP statuses must be between 100 and 599")
+            self.expected_statuses = list(dict.fromkeys(self.expected_statuses))
+        if self.schedule_mode == "daily" and not self.schedule_time:
+            raise ValueError("Daily schedules require a clock time")
+        if self.schedule_mode == "once":
+            if not self.schedule_at:
+                raise ValueError("One-time schedules require a date and time")
+            try:
+                scheduled = datetime.fromisoformat(self.schedule_at)
+                if scheduled.tzinfo is None:
+                    raise ValueError
+            except ValueError:
+                raise ValueError("One-time schedule must include a date, time, and timezone offset")
+        try:
+            ZoneInfo(self.schedule_timezone)
+        except ZoneInfoNotFoundError:
+            raise ValueError("Unknown schedule timezone")
+        return self
 
 
 class JsonAssertion(BaseModel):
@@ -389,8 +422,9 @@ def list_monitors(uid=Depends(current_user)):
 @app.post("/api/v1/monitors", status_code=201)
 def create_monitor(data: MonitorInput, uid=Depends(current_user)):
     mid = str(uuid4())
+    accepted_statuses = data.expected_statuses or [data.expected_status]
     with db() as c:
-        c.execute("INSERT INTO monitors(id,owner_id,name,url,interval_seconds,timeout_seconds,expected_status,latency_threshold_ms,is_active,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)", (mid, uid, data.name, data.url, data.interval_seconds, data.timeout_seconds, data.expected_status, data.latency_threshold_ms, int(data.is_active), now()))
+        c.execute("INSERT INTO monitors(id,owner_id,name,url,interval_seconds,timeout_seconds,expected_status,latency_threshold_ms,is_active,created_at,schedule_mode,schedule_time,schedule_at,schedule_timezone,expected_statuses) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (mid, uid, data.name, data.url, data.interval_seconds, data.timeout_seconds, data.expected_status, data.latency_threshold_ms, int(data.is_active), now(), data.schedule_mode, data.schedule_time, data.schedule_at, data.schedule_timezone, json.dumps(accepted_statuses)))
     return owned_monitor(mid, uid)
 
 
@@ -402,8 +436,9 @@ def get_monitor(mid: str, uid=Depends(current_user)):
 @app.patch("/api/v1/monitors/{mid}")
 def update_monitor(mid: str, data: MonitorInput, uid=Depends(current_user)):
     owned_monitor(mid, uid)
+    accepted_statuses = data.expected_statuses or [data.expected_status]
     with db() as c:
-        c.execute("UPDATE monitors SET name=?,url=?,interval_seconds=?,timeout_seconds=?,expected_status=?,latency_threshold_ms=?,is_active=? WHERE id=? AND owner_id=?", (data.name, data.url, data.interval_seconds, data.timeout_seconds, data.expected_status, data.latency_threshold_ms, int(data.is_active), mid, uid))
+        c.execute("UPDATE monitors SET name=?,url=?,interval_seconds=?,timeout_seconds=?,expected_status=?,latency_threshold_ms=?,is_active=?,schedule_mode=?,schedule_time=?,schedule_at=?,schedule_timezone=?,expected_statuses=? WHERE id=? AND owner_id=?", (data.name, data.url, data.interval_seconds, data.timeout_seconds, data.expected_status, data.latency_threshold_ms, int(data.is_active), data.schedule_mode, data.schedule_time, data.schedule_at, data.schedule_timezone, json.dumps(accepted_statuses), mid, uid))
     return owned_monitor(mid, uid)
 
 
@@ -432,10 +467,11 @@ async def perform_check(m):
                 async with httpx.AsyncClient(timeout=m["timeout_seconds"], follow_redirects=False, headers={"User-Agent": "SentinelAPI/1.0"}) as client:
                     async with client.stream("GET", m["url"]) as response:
                         status = response.status_code
-                        if status == m["expected_status"]:
+                        accepted_statuses = json.loads(m.get("expected_statuses") or "[" + str(m["expected_status"]) + "]")
+                        if status in accepted_statuses:
                             outcome = "UP"
                         else:
-                            outcome, error_type, error_message = "DOWN", "HTTP_STATUS", f"Expected {m['expected_status']}, received {status}"
+                            outcome, error_type, error_message = "DOWN", "HTTP_STATUS", f"Expected one of {', '.join(map(str, accepted_statuses))}, received {status}"
         except httpx.TimeoutException:
             outcome, error_type, error_message = "TIMEOUT", "TIMEOUT", "Request timed out"
         except httpx.HTTPError as e:
@@ -747,7 +783,20 @@ async def scheduler():
             for row in monitors:
                 m = dict(row)
                 last = m["last_checked_at"]
-                due = not last or (current - datetime.fromisoformat(last).timestamp() >= m["interval_seconds"])
+                last_dt = datetime.fromisoformat(last) if last else None
+                mode = m.get("schedule_mode", "interval")
+                if mode == "never":
+                    due = False
+                elif mode == "daily":
+                    local_now = datetime.now(ZoneInfo(m.get("schedule_timezone") or "UTC"))
+                    check_time = m.get("schedule_time") or "00:00"
+                    due = local_now.strftime("%H:%M") >= check_time and (not last_dt or last_dt.astimezone(ZoneInfo(m.get("schedule_timezone") or "UTC")).date() < local_now.date() or (last_dt.astimezone(ZoneInfo(m.get("schedule_timezone") or "UTC")).date() == local_now.date() and last_dt.astimezone(ZoneInfo(m.get("schedule_timezone") or "UTC")).strftime("%H:%M") < check_time))
+                elif mode == "once":
+                    target = datetime.fromisoformat(m["schedule_at"]).astimezone(timezone.utc) if m.get("schedule_at") else None
+                    last_utc = last_dt.astimezone(timezone.utc) if last_dt else None
+                    due = bool(target and datetime.now(timezone.utc) >= target and (not last_utc or last_utc < target))
+                else:
+                    due = not last_dt or (current - last_dt.timestamp() >= m["interval_seconds"])
                 if due and not LOCKS.get(m["id"], asyncio.Lock()).locked():
                     asyncio.create_task(run_monitor_suite(m))
         except Exception:
