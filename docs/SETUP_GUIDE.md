@@ -48,7 +48,7 @@ cp .env.example .env
 
 For a local demo, the defaults are sufficient. Set `APP_SECRET_KEY` to a long random value and change the Grafana password if you plan to start Grafana. Keep `.env` private; it is excluded from Git.
 
-The application reads `DATABASE_PATH` and the check interval/timeout limits from the process environment. When starting with Uvicorn directly, export any values you change in `.env` first, or use a shell that loads dotenv files. The current app does not load `.env` automatically. For example:
+The application loads `.env` automatically for local runs. Docker Compose also supplies the project `.env` through `env_file`. Set `DATABASE_PATH` and the check interval/timeout limits there if you need to change their defaults. For example:
 
 ```sh
 export DATABASE_PATH=./sentinelapi.db
@@ -57,6 +57,8 @@ export CHECK_TIMEOUT_MAX_SECONDS=20
 ```
 
 For scenario authentication, export secrets using the `SENTINEL_SECRET_` prefix, for example `export SENTINEL_SECRET_API_TOKEN='Bearer …'`. Scenario definitions store the environment-variable reference, not that value. The request body template itself is saved in SQLite, so use `{{env:SENTINEL_SECRET_PASSWORD}}` instead of typing a password into the template.
+
+To enable incident summaries, set `AWS_REGION=ap-south-1`, `BEDROCK_MODEL_ID=apac.amazon.nova-micro-v1:0`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` in `.env` (add `AWS_SESSION_TOKEN` for temporary credentials), or attach the IAM policy in `iam/bedrock-nova-micro-invoke.json` to the app's AWS identity. The policy allows the APAC inference profile and Nova Micro model. The model is invoked when you select **Analyze with Nova Micro** on an incident.
 
 ## 3. Start the API and dashboard
 

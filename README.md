@@ -45,7 +45,9 @@ This is an extensible scenario runner, not a universal API test language. It cur
 
 ## Configuration and security
 
-See `.env.example`. Configure sensitive values using `SENTINEL_SECRET_*` environment variables (Docker Compose reads the project `.env`; local shell runs need exported values). Passwords are stored as salted PBKDF2-SHA256 hashes (never encrypted or recoverable). Browser login uses a 12-hour HttpOnly, SameSite=Strict session cookie; only a SHA-256 digest of the session token is stored in SQLite. Production mode sets the cookie's Secure flag; serve the app behind HTTPS/TLS so credentials and session cookies are encrypted in transit. Set `SESSION_COOKIE_SECURE=true` when TLS terminates at a proxy but `APP_ENV` is not `production`. Sign-out revokes the current session. Monitor targets must resolve exclusively to globally routable addresses; private, loopback, reserved and metadata addresses are rejected and redirects are disabled. Login throttling, email verification, and DNS rebinding protection via an egress proxy/network policy remain deployment hardening needs.
+See `.env.example`. The app loads `.env` for local runs, and Docker Compose supplies it through `env_file`. Configure scenario secrets using `SENTINEL_SECRET_*` environment variables. Passwords are stored as salted PBKDF2-SHA256 hashes (never encrypted or recoverable). Browser login uses a 12-hour HttpOnly, SameSite=Strict session cookie; only a SHA-256 digest of the session token is stored in SQLite. Production mode sets the cookie's Secure flag; serve the app behind HTTPS/TLS so credentials and session cookies are encrypted in transit. Set `SESSION_COOKIE_SECURE=true` when TLS terminates at a proxy but `APP_ENV` is not `production`. Sign-out revokes the current session. Monitor targets must resolve exclusively to globally routable addresses; private, loopback, reserved and metadata addresses are rejected and redirects are disabled. Login throttling, email verification, and DNS rebinding protection via an egress proxy/network policy remain deployment hardening needs.
+
+Incident cards can request an on-demand Amazon Nova Micro analysis through Amazon Bedrock. Set `AWS_REGION=ap-south-1`, `BEDROCK_MODEL_ID=apac.amazon.nova-micro-v1:0`, and either `AWS_ACCESS_KEY_ID` plus `AWS_SECRET_ACCESS_KEY` (and optional `AWS_SESSION_TOKEN`) in `.env`, or use the standard AWS credential chain/IAM role. Attach [the app's Nova Micro IAM policy](iam/bedrock-nova-micro-invoke.json) to its IAM user or role. It grants only `bedrock:InvokeModel` on the APAC inference profile and Nova Micro model. Amazon Nova models do not require AWS Marketplace subscription permissions. The generated analysis is stored with the incident and uses incident facts and recent checks only; it does not query the monitored API or cloud logs.
 
 ## AWS status
 
@@ -56,7 +58,7 @@ No AWS deployment was performed. The brief's EC2/RDS/IAM/Secrets Manager/CloudWa
 - SQLite is for local demonstration; PostgreSQL migrations and database-backed Grafana integration remain unfinished.
 - One in-process scheduler runs per application process, does not use a distributed lock, and has no concurrency/rate cap beyond per-monitor overlap prevention.
 - Incident opening uses two consecutive availability failures; recovery is on the next successful result. Latency degradation does not currently open incidents.
-- SNS and Bedrock are not implemented. AI is disabled/not available.
+- SNS notifications are not implemented. Bedrock incident summaries are optional and require AWS credentials and model access.
 - Login/manual-check rate limits, email verification, and deployment hardening remain backlog items.
 
 See `docs/POST_MVP_BACKLOG.md` and `docs/IMPLEMENTATION_REPORT.md` for the detailed review.
