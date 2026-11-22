@@ -146,6 +146,7 @@
     }
     const esc = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
     const date = value => value ? new Date(value).toLocaleString() : '—';
+    const incidentAge = (start, end) => { const seconds = Math.max(0, Math.floor((new Date(end || Date.now()) - new Date(start)) / 1000)); const days = Math.floor(seconds / 86400), hours = Math.floor(seconds % 86400 / 3600), minutes = Math.floor(seconds % 3600 / 60); return days ? days + 'd ' + hours + 'h' : hours ? hours + 'h ' + minutes + 'm' : minutes + 'm'; };
     function showView(name) {
       ['overview', 'monitors', 'history', 'incidents'].forEach(view => {
         byId('view-' + view).hidden = view !== name;
@@ -287,7 +288,7 @@
         const openIncidents = incidentsData.items.filter(i => i.status === 'OPEN').length;
         byId('stat-incidents').textContent = openIncidents;
         byId('incident-nav-count').textContent = openIncidents;
-        byId('incidents').innerHTML = incidentsData.items.map(i => '<article><strong>' + esc(i.title) + '</strong> <span class="badge">' + esc(i.status) + '</span><p>' + esc(i.summary) + '</p><small>Opened ' + date(i.opened_at) + '</small><div class="actions">' + (i.status === 'OPEN' ? '<button class="secondary" onclick="incidentAction(\'' + i.id + '\',\'acknowledge\')">Acknowledge</button>' : '') + (['OPEN','ACKNOWLEDGED'].includes(i.status) ? '<button class="secondary" onclick="incidentAction(\'' + i.id + '\',\'resolve\')">Resolve</button>' : '') + '</div></article>').join('') || '<p class="empty">All clear — no incidents.</p>';
+        byId('incidents').innerHTML = incidentsData.items.map(i => { const statusHelp = i.status === 'OPEN' ? 'Active: checks are still failing or the issue has not yet been confirmed recovered.' : i.status === 'ACKNOWLEDGED' ? 'Acknowledged: someone has reviewed the alert; it remains unresolved.' : 'Resolved: ' + (i.resolution_reason || 'the incident was closed.') ; return '<article><strong>' + esc(i.title) + '</strong> <span class="badge ' + esc(i.severity.toLowerCase()) + '">' + esc(i.severity) + '</span> <span class="badge">' + esc(i.status) + '</span><p><strong>' + esc(i.monitor_name || 'Monitor') + '</strong><br><small>' + esc((i.monitor_url || '').split('?')[0]) + '</small></p><p>' + esc(i.summary) + '</p><p><strong>Status meaning:</strong> ' + esc(statusHelp) + '</p><small>Opened ' + date(i.opened_at) + ' · Updated ' + date(i.updated_at) + (i.resolved_at ? ' · Resolved ' + date(i.resolved_at) : ' · Open for ' + incidentAge(i.opened_at)) + '</small><div class="actions">' + (i.status === 'OPEN' ? '<button class="secondary" onclick="incidentAction(\'' + i.id + '\',\'acknowledge\')">Acknowledge</button>' : '') + (['OPEN','ACKNOWLEDGED'].includes(i.status) ? '<button class="secondary" onclick="incidentAction(\'' + i.id + '\',\'resolve\')">Resolve</button>' : '') + '</div></article>'; }).join('') || '<p class="empty">All clear — no incidents.</p>';
         byId('msg').textContent = 'Updated just now';
       } catch (error) { byId('msg').textContent = error.message; }
     }

@@ -70,7 +70,7 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_monitors_owner ON monitors(owner_id);
         CREATE TABLE IF NOT EXISTS results(id TEXT PRIMARY KEY,monitor_id TEXT NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,checked_at TEXT NOT NULL,outcome TEXT NOT NULL,http_status INTEGER,latency_ms REAL,error_type TEXT,error_message TEXT);
         CREATE INDEX IF NOT EXISTS idx_results_monitor_time ON results(monitor_id,checked_at DESC);
-        CREATE TABLE IF NOT EXISTS incidents(id TEXT PRIMARY KEY,monitor_id TEXT NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,status TEXT NOT NULL,severity TEXT NOT NULL,title TEXT NOT NULL,summary TEXT NOT NULL,fingerprint TEXT NOT NULL,opened_at TEXT NOT NULL,updated_at TEXT NOT NULL,resolved_at TEXT);
+        CREATE TABLE IF NOT EXISTS incidents(id TEXT PRIMARY KEY,monitor_id TEXT NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,status TEXT NOT NULL,severity TEXT NOT NULL,title TEXT NOT NULL,summary TEXT NOT NULL,fingerprint TEXT NOT NULL,opened_at TEXT NOT NULL,updated_at TEXT NOT NULL,resolved_at TEXT,resolution_reason TEXT);
         CREATE UNIQUE INDEX IF NOT EXISTS idx_open_incident ON incidents(fingerprint) WHERE status='OPEN';
         CREATE TABLE IF NOT EXISTS test_cases(id TEXT PRIMARY KEY,monitor_id TEXT NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,name TEXT NOT NULL,url TEXT NOT NULL,expected_status INTEGER NOT NULL,timeout_seconds INTEGER NOT NULL,latency_threshold_ms INTEGER,assertions_json TEXT NOT NULL DEFAULT '[]',is_active INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,method TEXT NOT NULL DEFAULT 'GET',request_body TEXT,headers_json TEXT NOT NULL DEFAULT '{}',steps_json TEXT NOT NULL DEFAULT '[]',allow_mutation INTEGER NOT NULL DEFAULT 0,schedule_mutations INTEGER NOT NULL DEFAULT 0,extract_json TEXT NOT NULL DEFAULT '{}');
         CREATE INDEX IF NOT EXISTS idx_test_cases_monitor ON test_cases(monitor_id,is_active);
@@ -80,6 +80,9 @@ def init_db():
         case_columns = {row[1] for row in c.execute("PRAGMA table_info(test_cases)")}
         session_columns = {row[1] for row in c.execute("PRAGMA table_info(sessions)")}
         monitor_columns = {row[1] for row in c.execute("PRAGMA table_info(monitors)")}
+        incident_columns = {row[1] for row in c.execute("PRAGMA table_info(incidents)")}
+        if "resolution_reason" not in incident_columns:
+            c.execute("ALTER TABLE incidents ADD COLUMN resolution_reason TEXT")
         for name, declaration in (("schedule_mode", "TEXT NOT NULL DEFAULT 'interval'"), ("schedule_time", "TEXT"), ("schedule_at", "TEXT"), ("schedule_timezone", "TEXT NOT NULL DEFAULT 'UTC'"), ("expected_statuses", "TEXT NOT NULL DEFAULT '[200]'")):
             if name not in monitor_columns:
                 c.execute(f"ALTER TABLE monitors ADD COLUMN {name} {declaration}")
@@ -491,7 +494,7 @@ async def perform_check(m):
         with db() as c:
             c.execute("INSERT INTO results VALUES(?,?,?,?,?,?,?,?)", (str(uuid4()), mid, checked, outcome, status, latency, error_type, error_message))
             c.execute("UPDATE monitors SET last_checked_at=?,last_status=?,last_latency_ms=? WHERE id=?", (checked, outcome, latency, mid))
-            evaluate_incident(c, m, outcome, status, latency, error_message, checked)
+            evaluate_incident(c, m, outcome, status, latency, error_type, error_message, checked)
         return {"monitor_id": mid, "checked_at": checked, "outcome": outcome, "http_status": status, "latency_ms": latency, "error_type": error_type, "error_message": error_message}
 
 
@@ -600,25 +603,34 @@ async def run_test_case(test_case):
         total = sum(result["assertions_total"] for result in step_results)
         with db() as c:
             c.execute("INSERT INTO test_case_results(id,test_case_id,checked_at,outcome,http_status,latency_ms,error_type,error_message,assertions_passed,assertions_total,step_results_json) VALUES(?,?,?,?,?,?,?,?,?,?,?)", (str(uuid4()), case_id, checked, overall, status, latency, error_type, error_message, passed, total, json.dumps(step_results, ensure_ascii=False)))
-            evaluate_case_incident(c, test_case, overall, status, latency, error_message, checked)
+            evaluate_case_incident(c, test_case, overall, status, latency, error_message, checked, step_results)
         return {"test_case_id": case_id, "checked_at": checked, "outcome": overall, "http_status": status, "latency_ms": latency, "error_type": error_type, "error_message": error_message, "assertions_passed": passed, "assertions_total": total, "steps": step_results}
 
 
-def evaluate_case_incident(c, test_case, outcome, status, latency, error, stamp):
+def evaluate_case_incident(c, test_case, outcome, status, latency, error, stamp, step_results):
     case_id = test_case["id"]
     fingerprint = case_id + ":test-case"
     recent = c.execute("SELECT outcome FROM test_case_results WHERE test_case_id=? ORDER BY checked_at DESC LIMIT 2", (case_id,)).fetchall()
     bad = {"DOWN", "TIMEOUT", "ERROR", "VALIDATION_FAILED"}
     if len(recent) == 2 and all(row["outcome"] in bad for row in recent):
         severity = "CRITICAL" if outcome in {"DOWN", "TIMEOUT", "ERROR"} else "WARNING"
-        summary = f"Two consecutive test-case runs failed. Latest outcome: {outcome}; HTTP status: {status}; latency: {latency} ms; error: {error or 'assertions did not pass'}."
+        failing_index = next((index for index, step in enumerate(step_results) if step["outcome"] in bad), max(len(step_results) - 1, 0))
+        failed_step = step_results[failing_index] if step_results else {}
+        configured_steps = [{"name": test_case["name"], "url": test_case["url"], "method": test_case.get("method", "GET"), "expected_status": test_case["expected_status"]}] + test_case.get("steps", [])
+        step_config = configured_steps[min(failing_index, len(configured_steps) - 1)]
+        expected = step_config.get("expected_status")
+        status_detail = f"Expected HTTP {expected}, received {status}." if status is not None and expected is not None else (f"Received HTTP {status}." if status is not None else "No HTTP response was received.")
+        assertions_detail = f" Assertions: {failed_step.get('assertions_passed', 0)}/{failed_step.get('assertions_total', 0)} passed." if failed_step.get("assertions_total") else ""
+        summary = (f"Two consecutive runs failed. Latest outcome: {outcome}. Failed step: {failed_step.get('name', step_config.get('name', test_case['name']))} "
+                   f"({failed_step.get('method', step_config.get('method', 'GET'))} {step_config.get('url', test_case['url'])}). {status_detail} "
+                   f"Run latency: {latency} ms.{assertions_detail} Cause: {error or 'response checks did not pass'}.")[:1000]
         existing = c.execute("SELECT id FROM incidents WHERE fingerprint=? AND status IN ('OPEN','ACKNOWLEDGED')", (fingerprint,)).fetchone()
         if existing:
             c.execute("UPDATE incidents SET updated_at=?,summary=?,severity=? WHERE id=?", (stamp, summary, severity, existing["id"]))
         else:
             c.execute("INSERT INTO incidents(id,monitor_id,status,severity,title,summary,fingerprint,opened_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)", (str(uuid4()), test_case["monitor_id"], "OPEN", severity, f"Test case failing: {test_case['name']}", summary, fingerprint, stamp, stamp))
     elif len(recent) == 2 and all(row["outcome"] in {"UP", "DEGRADED"} for row in recent):
-        c.execute("UPDATE incidents SET status='RESOLVED',updated_at=?,resolved_at=? WHERE fingerprint=? AND status IN ('OPEN','ACKNOWLEDGED')", (stamp, stamp, fingerprint))
+        c.execute("UPDATE incidents SET status='RESOLVED',updated_at=?,resolved_at=?,resolution_reason=? WHERE fingerprint=? AND status IN ('OPEN','ACKNOWLEDGED')", (stamp, stamp, "Two consecutive test-case runs passed.", fingerprint))
 
 
 def case_has_writes(test_case):
@@ -648,21 +660,33 @@ async def run_monitor_suite(monitor):
     return {**monitor_result, "test_cases": case_results}
 
 
-def evaluate_incident(c, monitor, outcome, status, latency, error, stamp):
+def evaluate_incident(c, monitor, outcome, status, latency, error_type, error, stamp):
     mid = monitor["id"]
     fp = mid + ":availability"
     bad = outcome in ("DOWN", "TIMEOUT", "ERROR")
     if bad:
         recent = c.execute("SELECT outcome FROM results WHERE monitor_id=? ORDER BY checked_at DESC LIMIT 2", (mid,)).fetchall()
         if len(recent) == 2 and all(x["outcome"] in ("DOWN", "TIMEOUT", "ERROR") for x in recent):
-            summary = f"Two consecutive checks failed. Latest outcome: {outcome}; HTTP status: {status}; error: {error or 'none'}."
+            accepted_statuses = monitor.get("expected_statuses") or [monitor.get("expected_status", 200)]
+            if isinstance(accepted_statuses, str):
+                try:
+                    accepted_statuses = json.loads(accepted_statuses)
+                except json.JSONDecodeError:
+                    accepted_statuses = [monitor.get("expected_status", 200)]
+            expected = ", ".join(map(str, accepted_statuses))
+            response_detail = f"HTTP {status} received; expected one of {expected}." if status is not None else f"No HTTP response received; expected one of {expected}."
+            latency_detail = f"Response time: {latency} ms" + (f" (configured threshold {monitor['latency_threshold_ms']} ms)." if monitor.get("latency_threshold_ms") else ".")
+            cause = f"{error_type}: {error}" if error_type and error else (error or error_type or "No additional error detail")
+            endpoint = monitor["url"].split("?", 1)[0]
+            summary = (f"Two consecutive monitor checks failed. Latest outcome: {outcome}. Endpoint: {endpoint}. "
+                       f"{response_detail} {latency_detail} Cause: {cause}.")[:1000]
             existing = c.execute("SELECT id FROM incidents WHERE fingerprint=? AND status IN ('OPEN','ACKNOWLEDGED')", (fp,)).fetchone()
             if existing:
                 c.execute("UPDATE incidents SET updated_at=?,summary=? WHERE id=?", (stamp, summary, existing["id"]))
             else:
                 c.execute("INSERT INTO incidents(id,monitor_id,status,severity,title,summary,fingerprint,opened_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)", (str(uuid4()), mid, "OPEN", "CRITICAL", "Monitor unavailable", summary, fp, stamp, stamp))
     else:
-        c.execute("UPDATE incidents SET status='RESOLVED',updated_at=?,resolved_at=? WHERE fingerprint=? AND status IN ('OPEN','ACKNOWLEDGED')", (stamp, stamp, fp))
+        c.execute("UPDATE incidents SET status='RESOLVED',updated_at=?,resolved_at=?,resolution_reason=? WHERE fingerprint=? AND status IN ('OPEN','ACKNOWLEDGED')", (stamp, stamp, "A later monitor check passed.", fp))
 
 
 @app.post("/api/v1/monitors/{mid}/check")
@@ -747,14 +771,14 @@ def results(mid: str, limit: int = 100, uid=Depends(current_user)):
 @app.get("/api/v1/incidents")
 def incidents(uid=Depends(current_user)):
     with db() as c:
-        rows = c.execute("SELECT i.* FROM incidents i JOIN monitors m ON i.monitor_id=m.id WHERE m.owner_id=? ORDER BY i.opened_at DESC", (uid,)).fetchall()
+        rows = c.execute("SELECT i.*,m.name AS monitor_name,m.url AS monitor_url FROM incidents i JOIN monitors m ON i.monitor_id=m.id WHERE m.owner_id=? ORDER BY i.opened_at DESC", (uid,)).fetchall()
     return {"items": [dict(x) for x in rows]}
 
 
 @app.get("/api/v1/incidents/{iid}")
 def incident_detail(iid: str, uid=Depends(current_user)):
     with db() as c:
-        row = c.execute("SELECT i.* FROM incidents i JOIN monitors m ON i.monitor_id=m.id WHERE i.id=? AND m.owner_id=?", (iid, uid)).fetchone()
+        row = c.execute("SELECT i.*,m.name AS monitor_name,m.url AS monitor_url FROM incidents i JOIN monitors m ON i.monitor_id=m.id WHERE i.id=? AND m.owner_id=?", (iid, uid)).fetchone()
     if not row:
         raise HTTPException(404, "Incident not found")
     return dict(row)
@@ -773,7 +797,7 @@ def acknowledge(iid: str, uid=Depends(current_user)):
 def resolve_incident(iid: str, uid=Depends(current_user)):
     stamp = now()
     with db() as c:
-        cur = c.execute("UPDATE incidents SET status='RESOLVED',updated_at=?,resolved_at=? WHERE id=? AND status IN ('OPEN','ACKNOWLEDGED') AND monitor_id IN (SELECT id FROM monitors WHERE owner_id=?)", (stamp, stamp, iid, uid))
+        cur = c.execute("UPDATE incidents SET status='RESOLVED',updated_at=?,resolved_at=?,resolution_reason=? WHERE id=? AND status IN ('OPEN','ACKNOWLEDGED') AND monitor_id IN (SELECT id FROM monitors WHERE owner_id=?)", (stamp, stamp, "Manually resolved by a user.", iid, uid))
     if not cur.rowcount:
         raise HTTPException(404, "Incident not found")
     return {"resolved": True}
