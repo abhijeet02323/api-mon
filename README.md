@@ -25,7 +25,7 @@ The app is at port 8000, Grafana binds to localhost port 3000, and Prometheus is
 
 ## Scenario-based API tests
 
-Open a monitor's detail view and choose **Add test case** to define another safe GET scenario for that service. A case has its own URL, expected status, timeout, optional latency threshold, and up to 20 JSON response assertions. Up to 25 cases can be attached to a monitor. Enabled cases run with that monitor's scheduled checks; **Run case** executes one immediately.
+Open a monitor's detail view and choose **Add test case** to create a scenario. A case has its own URL, method, expected status, timeout, optional latency threshold, request headers/body, JSON assertions, and up to 10 chained steps. Up to 25 cases can be attached to a monitor. Enabled safe cases run with that monitor's schedule; **Run case** executes one immediately and shows each step's result.
 
 Assertions use simple JSON paths and explicit operators. For example:
 
@@ -37,13 +37,15 @@ Assertions use simple JSON paths and explicit operators. For example:
 ]
 ```
 
-Supported operators are `equals`, `not_equals`, `contains`, `gt`, `gte`, `lt`, `lte`, `exists`, and `not_exists`. Case runs record `UP`, `DEGRADED`, `DOWN`, `TIMEOUT`, `ERROR`, or `VALIDATION_FAILED`; two consecutive failures open a deduplicated incident, and two passing runs resolve it. Response bodies are read only when assertions are configured, capped at 256 KiB, and never persisted. Requests use GET only, disable redirects, and reuse the monitor's public-destination safety rules.
+Supported methods are GET, HEAD, POST, PUT, PATCH, and DELETE. Supported assertion operators are `equals`, `not_equals`, `contains`, `gt`, `gte`, `lt`, `lte`, `exists`, and `not_exists`. A step can extract response JSON paths into variables (for example `{"access_token":"token","item_id":"data.id"}`); later URLs, headers, and bodies can refer to them as `{{access_token}}`. Use `env:SENTINEL_SECRET_NAME` for a sensitive header or `{{env:SENTINEL_SECRET_NAME}}` in a request body. Secret values must be set in the app environment and are not stored in SQLite. Request body templates are stored, so do not put literal credentials in them or secrets in URL query strings.
 
-This is a small scenario runner, not a universal API test language. It does not yet send POST/PUT/PATCH/DELETE requests, custom headers or authentication, chain steps, extract variables, or validate arbitrary schemas. Those need explicit credential handling, safe execution rules, and richer test contracts before they are added.
+Write methods require explicit confirmation when saving and again for each manual run. They stay out of the scheduler unless **Allow write steps to run automatically** is explicitly enabled. Keep scheduled write tests isolated and idempotent. Redirects are disabled, custom hop-by-hop/proxy headers are rejected, each request target is revalidated, request bodies are limited to 32 KiB, and response bodies used for assertions/extraction are capped at 256 KiB and never persisted. Outcomes are `UP`, `DEGRADED`, `DOWN`, `TIMEOUT`, `ERROR`, and `VALIDATION_FAILED`; two consecutive failures open a deduplicated incident and two passing runs resolve it.
+
+This is an extensible scenario runner, not a universal API test language. It currently does not provide browser execution, arbitrary schema/JSON Schema validation, loops, branching, load testing, fuzzing, or multi-region execution. Request body templates are stored in the local SQLite database; use environment references for credentials and review access to that file.
 
 ## Configuration and security
 
-See `.env.example`. The application uses a random opaque bearer session token and PBKDF2 password hashes. Monitor targets must resolve exclusively to globally routable addresses; private, loopback, reserved and metadata addresses are rejected, redirects are disabled, and no custom headers or bodies are accepted. Checks use bounded timeouts and do not persist response bodies. Use HTTPS behind a reverse proxy for any shared deployment; this local MVP has no login throttling, CSRF surface is limited to bearer-authenticated API calls, and sessions have no expiry/revocation endpoint. DNS rebinding protection requires an egress proxy/network policy in production.
+See `.env.example`. Configure sensitive values using `SENTINEL_SECRET_*` environment variables (Docker Compose reads the project `.env`; local shell runs need exported values). The application uses a random opaque bearer session token and PBKDF2 password hashes. Monitor targets must resolve exclusively to globally routable addresses; private, loopback, reserved and metadata addresses are rejected and redirects are disabled. Use HTTPS behind a reverse proxy for any shared deployment; this local MVP has no login throttling, CSRF surface is limited to bearer-authenticated API calls, and sessions have no expiry/revocation endpoint. DNS rebinding protection requires an egress proxy/network policy in production.
 
 ## AWS status
 

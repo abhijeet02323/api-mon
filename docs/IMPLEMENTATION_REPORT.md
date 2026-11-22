@@ -7,7 +7,7 @@
 - Owner-scoped monitor create/list/detail/update/delete, manual check, history, incidents, acknowledgement, and resolution endpoints.
 - Dashboard monitor detail view with recent check history, failure details, and an inline response-time trend chart.
 - Dashboard status cards, monitor search/filter/edit/pause/resume/delete actions, incident acknowledgement/resolution, readable validation errors, and explicit DOM lookups for form fields.
-- Per-monitor scheduled GET test cases with configurable expected status, timeout, latency threshold, bounded JSON-path assertions, separate outcome history, and failure incidents.
+- Per-monitor scenarios with GET/HEAD/POST/PUT/PATCH/DELETE methods, environment-backed sensitive headers, bounded request bodies, chained JSON extraction/substitution, per-step results, and explicit guards for mutating requests.
 - SQLite persistence, a one-process periodic scheduler, per-monitor overlap prevention, bounded request timeout, disabled redirects, and no response-body persistence.
 - DNS/IP checks block non-global destinations before monitor creation and before each request. Incidents open after two consecutive availability failures and resolve after a successful check.
 - Docker app/Prometheus/Grafana setup, an example metrics dashboard and datasource provisioning, environment template, backlog, and this report.
@@ -19,19 +19,19 @@ FastAPI + httpx + SQLite in one container, with an in-process asyncio scheduler.
 ## Verification
 
 - `python -m py_compile app.py`: passed after fixing a syntax error found during initial validation.
-- `python -m unittest tests.test_assertions -v`: passed (3 JSON-path assertion helper tests).
+- `.venv/bin/python -m unittest discover -s tests -v`: passed (11 URL/security, assertion, scenario utility, method, chain, outcome, and persistence tests).
 - Grafana dashboard JSON parsing with Python's `json` module: passed.
 - Dashboard inline JavaScript syntax check with `node --check`: passed for monitor history and latency chart code.
-- FastAPI/httpx runtime and endpoint tests: blocked. `python -m unittest discover -s tests -v` cannot import the app because `httpx` is not installed; `python -m pip` is unavailable in this environment, so dependencies could not be installed.
-- UI → API → DB → result path, scheduler behavior, and incident transitions: not runtime verified.
+- Scenario runner tests use a mocked HTTP transport and verify request methods, environment-backed auth, chained steps, assertions, persisted results, and outcomes without contacting external systems.
+- Full browser-to-HTTP-server smoke test and Docker Compose: not runtime verified in this environment. Docker is unavailable, and the local ASGI test client hangs even with a minimal FastAPI app; route functions and runner persistence were exercised directly.
 - Docker Compose and live Grafana datasource: configured but not runtime verified because Docker is unavailable in the build environment. PostgreSQL is not used. AWS deployment and CloudWatch: not verified; no AWS credentials are available in this checkout.
-- Git history/status: history is available, but this update could not be committed because the workspace marks `.git` read-only (`git add` cannot create `.git/index.lock`). Runtime tests remain blocked by the missing Python dependencies.
+- `httpx` is installed in the project virtual environment and the mocked scenario tests pass. Full HTTP-server/browser smoke testing remains unverified because the local ASGI test client hangs even with a minimal FastAPI app.
 
 ## Security review
 
-Positive controls: password hashing, bearer auth, parameterized SQLite queries, ownership-scoped reads/updates/deletes, URL scheme and credential validation, public-IP-only DNS validation, redirect disabling, bounded request timeout, bounded input fields, and response-body omission.
+Positive controls: password hashing, bearer auth, parameterized SQLite queries, ownership-scoped reads/updates/deletes, URL scheme and credential validation, public-IP-only DNS validation, redirect disabling, bounded request timeout/concurrency, bounded request/response bodies, hop-by-hop header rejection, sensitive-header environment references, explicit mutating-method consent, and response-body omission.
 
-Known gaps: no login or manual-check rate limiting, session expiry/revocation, TLS termination, database migrations, DNS pinning/egress proxy, global scheduler concurrency/rate limiting, or production CORS/security-header configuration. `is_global` checks reduce SSRF exposure but cannot stop DNS rebinding between resolution and connection. Do not expose this MVP to the public internet without network egress controls and a hardened deployment.
+Known gaps: scenario request-body templates are stored in SQLite, so credentials must use environment placeholders; no login/manual-check rate limiting, session expiry/revocation, TLS termination, versioned migrations, DNS pinning/egress proxy, distributed scheduler, or production CORS/security-header configuration. `is_global` checks reduce SSRF exposure but cannot stop DNS rebinding between resolution and connection. Do not expose this MVP to the public internet without network egress controls and a hardened deployment.
 
 ## Deployment and product gaps
 

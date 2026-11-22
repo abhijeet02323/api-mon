@@ -12,14 +12,15 @@ import time
 from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime, timezone
 from typing import Any, Literal
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlsplit
 from uuid import uuid4
 
-from assertions import assertion_passes, validate_json_path
+from assertions import assertion_passes, json_path_value, validate_json_path
+from scenario_utils import ScenarioConfigError, resolve_scenario_text, validate_extractions, validate_headers
 import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException, Response
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 DB = os.getenv("DATABASE_PATH", "sentinelapi.db")
 MIN_INTERVAL = int(os.getenv("CHECK_INTERVAL_MIN_SECONDS", "60"))
@@ -27,7 +28,9 @@ MAX_TIMEOUT = int(os.getenv("CHECK_TIMEOUT_MAX_SECONDS", "20"))
 LOCKS: dict[str, asyncio.Lock] = {}
 CASE_LOCKS: dict[str, asyncio.Lock] = {}
 MAX_ASSERTION_RESPONSE_BYTES = 262144
+MAX_REQUEST_BODY_BYTES = 32768
 MAX_CASES_PER_MONITOR = 25
+MAX_CHAIN_STEPS = 10
 CASE_SEMAPHORE = asyncio.Semaphore(10)
 
 
@@ -65,11 +68,18 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_results_monitor_time ON results(monitor_id,checked_at DESC);
         CREATE TABLE IF NOT EXISTS incidents(id TEXT PRIMARY KEY,monitor_id TEXT NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,status TEXT NOT NULL,severity TEXT NOT NULL,title TEXT NOT NULL,summary TEXT NOT NULL,fingerprint TEXT NOT NULL,opened_at TEXT NOT NULL,updated_at TEXT NOT NULL,resolved_at TEXT);
         CREATE UNIQUE INDEX IF NOT EXISTS idx_open_incident ON incidents(fingerprint) WHERE status='OPEN';
-        CREATE TABLE IF NOT EXISTS test_cases(id TEXT PRIMARY KEY,monitor_id TEXT NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,name TEXT NOT NULL,url TEXT NOT NULL,expected_status INTEGER NOT NULL,timeout_seconds INTEGER NOT NULL,latency_threshold_ms INTEGER,assertions_json TEXT NOT NULL DEFAULT '[]',is_active INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS test_cases(id TEXT PRIMARY KEY,monitor_id TEXT NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,name TEXT NOT NULL,url TEXT NOT NULL,expected_status INTEGER NOT NULL,timeout_seconds INTEGER NOT NULL,latency_threshold_ms INTEGER,assertions_json TEXT NOT NULL DEFAULT '[]',is_active INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,method TEXT NOT NULL DEFAULT 'GET',request_body TEXT,headers_json TEXT NOT NULL DEFAULT '{}',steps_json TEXT NOT NULL DEFAULT '[]',allow_mutation INTEGER NOT NULL DEFAULT 0,schedule_mutations INTEGER NOT NULL DEFAULT 0,extract_json TEXT NOT NULL DEFAULT '{}');
         CREATE INDEX IF NOT EXISTS idx_test_cases_monitor ON test_cases(monitor_id,is_active);
-        CREATE TABLE IF NOT EXISTS test_case_results(id TEXT PRIMARY KEY,test_case_id TEXT NOT NULL REFERENCES test_cases(id) ON DELETE CASCADE,checked_at TEXT NOT NULL,outcome TEXT NOT NULL,http_status INTEGER,latency_ms REAL,error_type TEXT,error_message TEXT,assertions_passed INTEGER NOT NULL DEFAULT 0,assertions_total INTEGER NOT NULL DEFAULT 0);
+        CREATE TABLE IF NOT EXISTS test_case_results(id TEXT PRIMARY KEY,test_case_id TEXT NOT NULL REFERENCES test_cases(id) ON DELETE CASCADE,checked_at TEXT NOT NULL,outcome TEXT NOT NULL,http_status INTEGER,latency_ms REAL,error_type TEXT,error_message TEXT,assertions_passed INTEGER NOT NULL DEFAULT 0,assertions_total INTEGER NOT NULL DEFAULT 0,step_results_json TEXT NOT NULL DEFAULT '[]');
         CREATE INDEX IF NOT EXISTS idx_case_results_case_time ON test_case_results(test_case_id,checked_at DESC);
         """)
+        case_columns = {row[1] for row in c.execute("PRAGMA table_info(test_cases)")}
+        for name, declaration in (("method", "TEXT NOT NULL DEFAULT 'GET'"), ("request_body", "TEXT"), ("headers_json", "TEXT NOT NULL DEFAULT '{}'"), ("steps_json", "TEXT NOT NULL DEFAULT '[]'"), ("allow_mutation", "INTEGER NOT NULL DEFAULT 0"), ("schedule_mutations", "INTEGER NOT NULL DEFAULT 0"), ("extract_json", "TEXT NOT NULL DEFAULT '{}'")):
+            if name not in case_columns:
+                c.execute(f"ALTER TABLE test_cases ADD COLUMN {name} {declaration}")
+        result_columns = {row[1] for row in c.execute("PRAGMA table_info(test_case_results)")}
+        if "step_results_json" not in result_columns:
+            c.execute("ALTER TABLE test_case_results ADD COLUMN step_results_json TEXT NOT NULL DEFAULT '[]'")
 
 
 def hash_password(pw):
@@ -88,6 +98,9 @@ def safe_url(url):
     u = urlsplit(url)
     if u.scheme not in ("http", "https") or not u.hostname or u.username or u.password:
         raise ValueError("URL must be HTTP(S), include a hostname, and contain no credentials")
+    sensitive_query_keys = {"api_key", "apikey", "access_token", "auth_token", "client_secret", "password", "secret", "token", "authorization"}
+    if any(key.lower() in sensitive_query_keys for key, _ in parse_qsl(u.query, keep_blank_values=True)):
+        raise ValueError("Do not put credentials in URL query parameters; use an environment-backed request header")
     if u.port and not (1 <= u.port <= 65535):
         raise ValueError("Invalid URL port")
     try:
@@ -134,6 +147,48 @@ class JsonAssertion(BaseModel):
         return validate_json_path(value)
 
 
+HTTP_METHODS = Literal["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"]
+WRITE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
+
+class ScenarioStepInput(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    url: str = Field(max_length=2048)
+    method: HTTP_METHODS = "GET"
+    expected_status: int = Field(default=200, ge=100, le=599)
+    timeout_seconds: int = Field(default=5, ge=1, le=MAX_TIMEOUT)
+    latency_threshold_ms: int | None = Field(default=None, ge=1, le=120000)
+    headers: dict[str, str] = Field(default_factory=dict, max_length=30)
+    request_body: str | None = Field(default=None, max_length=32768)
+    assertions: list[JsonAssertion] = Field(default_factory=list, max_length=20)
+    extract: dict[str, str] = Field(default_factory=dict, max_length=20)
+    allow_mutation: bool = False
+
+    @field_validator("url")
+    @classmethod
+    def valid_target(cls, value):
+        safe_url(value)
+        return value
+
+    @field_validator("headers")
+    @classmethod
+    def valid_request_headers(cls, value):
+        return validate_headers(value)
+
+    @field_validator("extract")
+    @classmethod
+    def valid_extract(cls, value):
+        return validate_extractions(value)
+
+    @model_validator(mode="after")
+    def check_method_and_body(self):
+        if self.method in WRITE_METHODS and not self.allow_mutation:
+            raise ValueError(f"{self.method} changes remote state; explicitly set allow_mutation=true")
+        if self.method in {"GET", "HEAD"} and self.request_body:
+            raise ValueError(f"{self.method} requests cannot have a body")
+        return self
+
+
 class TestCaseInput(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     url: str = Field(max_length=2048)
@@ -142,12 +197,50 @@ class TestCaseInput(BaseModel):
     latency_threshold_ms: int | None = Field(default=None, ge=1, le=120000)
     assertions: list[JsonAssertion] = Field(default_factory=list, max_length=20)
     is_active: bool = True
+    method: HTTP_METHODS = "GET"
+    headers: dict[str, str] = Field(default_factory=dict, max_length=30)
+    request_body: str | None = Field(default=None, max_length=32768)
+    steps: list[ScenarioStepInput] = Field(default_factory=list, max_length=10)
+    allow_mutation: bool = False
+    schedule_mutations: bool = False
+    extract: dict[str, str] = Field(default_factory=dict, max_length=20)
 
     @field_validator("url")
     @classmethod
     def valid_target(cls, value):
         safe_url(value)
         return value
+
+    @field_validator("headers")
+    @classmethod
+    def valid_request_headers(cls, value):
+        return validate_headers(value)
+
+    @field_validator("extract")
+    @classmethod
+    def valid_extract(cls, value):
+        return validate_extractions(value)
+
+    @field_validator("steps")
+    @classmethod
+    def validate_chain_length(cls, value):
+        if len(value) > MAX_CHAIN_STEPS:
+            raise ValueError(f"A scenario can have at most {MAX_CHAIN_STEPS} additional steps")
+        return value
+
+    @model_validator(mode="after")
+    def check_scenario_methods(self):
+        if self.method in WRITE_METHODS and not self.allow_mutation:
+            raise ValueError(f"{self.method} changes remote state; explicitly confirm allow_mutation")
+        if self.method in {"GET", "HEAD"} and self.request_body:
+            raise ValueError(f"{self.method} requests cannot have a body")
+        write_steps = [step for step in self.steps if step.method in WRITE_METHODS]
+        has_write = self.method in WRITE_METHODS or bool(write_steps)
+        if has_write and self.is_active and not self.schedule_mutations:
+            raise ValueError("Scheduled write requests are disabled by default; explicitly confirm schedule_mutations")
+        if self.schedule_mutations and not has_write:
+            raise ValueError("schedule_mutations only applies when this scenario includes a write method")
+        return self
 
 
 @asynccontextmanager
@@ -190,6 +283,9 @@ def owned_test_case(case_id, uid):
         raise HTTPException(404, "Test case not found")
     result = dict(row)
     result["assertions"] = json.loads(result.pop("assertions_json"))
+    result["headers"] = json.loads(result.pop("headers_json"))
+    result["steps"] = json.loads(result.pop("steps_json"))
+    result["extract"] = json.loads(result.pop("extract_json"))
     return result
 
 
@@ -308,68 +404,113 @@ async def perform_check(m):
         return {"monitor_id": mid, "checked_at": checked, "outcome": outcome, "http_status": status, "latency_ms": latency, "error_type": error_type, "error_message": error_message}
 
 
+async def execute_scenario_step(step, variables, index):
+    started = time.perf_counter()
+    status, passed, total = None, 0, len(step["assertions"])
+    outcome, error_type, error_message = "ERROR", None, None
+    extracted = {}
+    try:
+        if step["method"] in WRITE_METHODS and not step.get("allow_mutation", False):
+            raise ScenarioConfigError("Write method is missing its explicit allow_mutation confirmation")
+        url = resolve_scenario_text(step["url"], variables)
+        if len(url) > 2048:
+            raise ScenarioConfigError("Rendered request URL exceeds 2048 characters")
+        safe_url(url)
+        headers = {key: resolve_scenario_text(value, variables) for key, value in step["headers"].items()}
+        request_body = resolve_scenario_text(step.get("request_body"), variables)
+        if request_body is not None:
+            if len(request_body.encode("utf-8")) > MAX_REQUEST_BODY_BYTES:
+                raise ScenarioConfigError("Request body exceeds the 32 KiB limit")
+            if not any(key.lower() == "content-type" for key in headers):
+                headers["Content-Type"] = "application/json"
+        async with CASE_SEMAPHORE:
+            async with httpx.AsyncClient(timeout=step["timeout_seconds"], follow_redirects=False, headers={"User-Agent": "SentinelAPI/1.0"}) as client:
+                async with client.stream(step["method"], url, headers=headers, content=request_body) as response:
+                    status = response.status_code
+                    if status != step["expected_status"]:
+                        outcome, error_type = "DOWN", "HTTP_STATUS"
+                        error_message = f"Expected HTTP {step['expected_status']}, received {status}"
+                    else:
+                        assertions, extract_rules = step["assertions"], step["extract"]
+                        document = None
+                        if assertions or extract_rules:
+                            body = bytearray()
+                            async for chunk in response.aiter_bytes():
+                                body.extend(chunk)
+                                if len(body) > MAX_ASSERTION_RESPONSE_BYTES:
+                                    raise ResponseLimitError("Response exceeded the 256 KiB assertion/extraction limit")
+                            try:
+                                document = json.loads(body)
+                            except (json.JSONDecodeError, UnicodeDecodeError):
+                                outcome, error_type, error_message = "VALIDATION_FAILED", "INVALID_JSON", "Response body is not valid JSON"
+                        if not error_type:
+                            failures = []
+                            for assertion in assertions:
+                                if assertion_passes(document, assertion):
+                                    passed += 1
+                                else:
+                                    failures.append(f"{assertion['path']} {assertion['operator']}")
+                            for variable, path in extract_rules.items():
+                                value, exists = json_path_value(document, path)
+                                if not exists:
+                                    failures.append(f"extract {variable} from {path}")
+                                else:
+                                    extracted[variable] = value
+                            if failures:
+                                outcome, error_type = "VALIDATION_FAILED", "ASSERTION_OR_EXTRACTION_FAILED"
+                                error_message = "Failed checks: " + ", ".join(failures)
+                            else:
+                                outcome = "UP"
+    except httpx.TimeoutException:
+        outcome, error_type, error_message = "TIMEOUT", "TIMEOUT", "Request timed out"
+    except httpx.HTTPError as error:
+        outcome, error_type, error_message = "ERROR", type(error).__name__, "Connection or TLS error"
+    except ResponseLimitError as error:
+        outcome, error_type, error_message = "VALIDATION_FAILED", "RESPONSE_TOO_LARGE", str(error)
+    except (ValueError, ScenarioConfigError) as error:
+        outcome, error_type, error_message = "ERROR", "SCENARIO_CONFIGURATION", str(error)
+    except Exception:
+        outcome, error_type, error_message = "ERROR", "EXECUTION_ERROR", "Unexpected scenario execution error"
+    latency = round((time.perf_counter() - started) * 1000, 2)
+    threshold = step["latency_threshold_ms"]
+    if outcome == "UP" and threshold and latency > threshold:
+        outcome = "DEGRADED"
+    return {"index": index, "name": step["name"], "method": step["method"], "outcome": outcome, "http_status": status, "latency_ms": latency, "error_type": error_type, "error_message": (error_message or "")[:240] or None, "assertions_passed": passed, "assertions_total": total, "variables": extracted}
+
+
 async def run_test_case(test_case):
     case_id = test_case["id"]
     lock = CASE_LOCKS.setdefault(case_id, asyncio.Lock())
     if lock.locked():
         raise HTTPException(429, "This test case is already running")
     async with lock:
-        checked, status = now(), None
-        started = time.perf_counter()
-        outcome, error_type, error_message = "ERROR", None, None
-        passed, total = 0, len(test_case["assertions"])
-        try:
-            safe_url(test_case["url"])
-            async with CASE_SEMAPHORE:
-                async with httpx.AsyncClient(timeout=test_case["timeout_seconds"], follow_redirects=False, headers={"User-Agent": "SentinelAPI/1.0"}) as client:
-                    async with client.stream("GET", test_case["url"]) as response:
-                        status = response.status_code
-                        if status != test_case["expected_status"]:
-                            outcome, error_type = "DOWN", "HTTP_STATUS"
-                            error_message = f"Expected HTTP {test_case['expected_status']}, received {status}"
-                        else:
-                            assertions = test_case["assertions"]
-                            if assertions:
-                                body = bytearray()
-                                async for chunk in response.aiter_bytes():
-                                    body.extend(chunk)
-                                    if len(body) > MAX_ASSERTION_RESPONSE_BYTES:
-                                        raise ResponseLimitError("Response exceeded the 256 KiB assertion limit")
-                                try:
-                                    document = json.loads(body)
-                                except (json.JSONDecodeError, UnicodeDecodeError):
-                                    outcome, error_type, error_message = "VALIDATION_FAILED", "INVALID_JSON", "Response body is not valid JSON"
-                                else:
-                                    failed = []
-                                    for assertion in assertions:
-                                        if assertion_passes(document, assertion):
-                                            passed += 1
-                                        else:
-                                            failed.append(f"{assertion['path']} {assertion['operator']}")
-                                    if failed:
-                                        outcome, error_type = "VALIDATION_FAILED", "ASSERTION_FAILED"
-                                        error_message = "Failed assertions: " + ", ".join(failed)
-                                    else:
-                                        outcome = "UP"
-                            else:
-                                outcome = "UP"
-        except httpx.TimeoutException:
-            outcome, error_type, error_message = "TIMEOUT", "TIMEOUT", "Request timed out"
-        except httpx.HTTPError as error:
-            outcome, error_type, error_message = "ERROR", type(error).__name__, "Connection or TLS error"
-        except ResponseLimitError as error:
-            outcome, error_type, error_message = "VALIDATION_FAILED", "RESPONSE_TOO_LARGE", str(error)
-        except ValueError as error:
-            outcome, error_type, error_message = "ERROR", "UNSAFE_TARGET", str(error)
+        checked, started = now(), time.perf_counter()
+        first_step = {"name": test_case["name"], "url": test_case["url"], "method": test_case.get("method", "GET"), "expected_status": test_case["expected_status"], "timeout_seconds": test_case["timeout_seconds"], "latency_threshold_ms": test_case["latency_threshold_ms"], "headers": test_case.get("headers", {}), "request_body": test_case.get("request_body"), "assertions": test_case["assertions"], "extract": test_case.get("extract", {}), "allow_mutation": bool(test_case.get("allow_mutation", False))}
+        steps = [first_step] + test_case.get("steps", [])
+        variables, step_results = {}, []
+        overall = "UP"
+        for index, step in enumerate(steps, start=1):
+            result = await execute_scenario_step(step, variables, index)
+            variables.update(result.pop("variables"))
+            step_results.append(result)
+            if result["outcome"] in {"DOWN", "TIMEOUT", "ERROR", "VALIDATION_FAILED"}:
+                overall = result["outcome"]
+                break
+            if result["outcome"] == "DEGRADED":
+                overall = "DEGRADED"
         latency = round((time.perf_counter() - started) * 1000, 2)
-        if outcome == "UP" and test_case["latency_threshold_ms"] and latency > test_case["latency_threshold_ms"]:
-            outcome = "DEGRADED"
-        if error_message:
-            error_message = error_message[:240]
+        if overall == "UP" and test_case["latency_threshold_ms"] and latency > test_case["latency_threshold_ms"]:
+            overall = "DEGRADED"
+        last = step_results[-1] if step_results else {}
+        error_type = last.get("error_type")
+        error_message = last.get("error_message")
+        status = last.get("http_status")
+        passed = sum(result["assertions_passed"] for result in step_results)
+        total = sum(result["assertions_total"] for result in step_results)
         with db() as c:
-            c.execute("INSERT INTO test_case_results(id,test_case_id,checked_at,outcome,http_status,latency_ms,error_type,error_message,assertions_passed,assertions_total) VALUES(?,?,?,?,?,?,?,?,?,?)", (str(uuid4()), case_id, checked, outcome, status, latency, error_type, error_message, passed, total))
-            evaluate_case_incident(c, test_case, outcome, status, latency, error_message, checked)
-        return {"test_case_id": case_id, "checked_at": checked, "outcome": outcome, "http_status": status, "latency_ms": latency, "error_type": error_type, "error_message": error_message, "assertions_passed": passed, "assertions_total": total}
+            c.execute("INSERT INTO test_case_results(id,test_case_id,checked_at,outcome,http_status,latency_ms,error_type,error_message,assertions_passed,assertions_total,step_results_json) VALUES(?,?,?,?,?,?,?,?,?,?,?)", (str(uuid4()), case_id, checked, overall, status, latency, error_type, error_message, passed, total, json.dumps(step_results, ensure_ascii=False)))
+            evaluate_case_incident(c, test_case, overall, status, latency, error_message, checked)
+        return {"test_case_id": case_id, "checked_at": checked, "outcome": overall, "http_status": status, "latency_ms": latency, "error_type": error_type, "error_message": error_message, "assertions_passed": passed, "assertions_total": total, "steps": step_results}
 
 
 def evaluate_case_incident(c, test_case, outcome, status, latency, error, stamp):
@@ -389,12 +530,22 @@ def evaluate_case_incident(c, test_case, outcome, status, latency, error, stamp)
         c.execute("UPDATE incidents SET status='RESOLVED',updated_at=?,resolved_at=? WHERE fingerprint=? AND status IN ('OPEN','ACKNOWLEDGED')", (stamp, stamp, fingerprint))
 
 
+def case_has_writes(test_case):
+    return test_case.get("method", "GET") in WRITE_METHODS or any(step.get("method", "GET") in WRITE_METHODS for step in test_case.get("steps", []))
+
+
 async def run_monitor_suite(monitor):
     monitor_result = await perform_check(monitor)
     with db() as c:
         cases = [dict(row) for row in c.execute("SELECT * FROM test_cases WHERE monitor_id=? AND is_active=1", (monitor["id"],)).fetchall()]
     for case in cases:
         case["assertions"] = json.loads(case.pop("assertions_json"))
+        case["headers"] = json.loads(case.pop("headers_json"))
+        case["steps"] = json.loads(case.pop("steps_json"))
+        case["extract"] = json.loads(case.pop("extract_json"))
+        case["allow_mutation"] = bool(case["allow_mutation"])
+        case["schedule_mutations"] = bool(case["schedule_mutations"])
+    cases = [case for case in cases if case["schedule_mutations"] or not case_has_writes(case)]
     results = await asyncio.gather(*(run_test_case(case) for case in cases), return_exceptions=True)
     case_results = []
     for case, result in zip(cases, results):
@@ -432,11 +583,14 @@ async def check_now(mid: str, uid=Depends(current_user)):
 def list_test_cases(mid: str, uid=Depends(current_user)):
     owned_monitor(mid, uid)
     with db() as c:
-        rows = c.execute("SELECT tc.*,(SELECT json_object('outcome',cr.outcome,'latency_ms',cr.latency_ms,'checked_at',cr.checked_at,'assertions_passed',cr.assertions_passed,'assertions_total',cr.assertions_total) FROM test_case_results cr WHERE cr.test_case_id=tc.id ORDER BY cr.checked_at DESC,cr.id DESC LIMIT 1) AS latest_result FROM test_cases tc WHERE tc.monitor_id=? ORDER BY tc.created_at", (mid,)).fetchall()
+        rows = c.execute("SELECT tc.*,(SELECT json_object('outcome',cr.outcome,'latency_ms',cr.latency_ms,'checked_at',cr.checked_at,'assertions_passed',cr.assertions_passed,'assertions_total',cr.assertions_total,'step_results',json(cr.step_results_json)) FROM test_case_results cr WHERE cr.test_case_id=tc.id ORDER BY cr.checked_at DESC,cr.id DESC LIMIT 1) AS latest_result FROM test_cases tc WHERE tc.monitor_id=? ORDER BY tc.created_at", (mid,)).fetchall()
     items = []
     for row in rows:
         item = dict(row)
         item["assertions"] = json.loads(item.pop("assertions_json"))
+        item["headers"] = json.loads(item.pop("headers_json"))
+        item["steps"] = json.loads(item.pop("steps_json"))
+        item["extract"] = json.loads(item.pop("extract_json"))
         item["latest_result"] = json.loads(item["latest_result"]) if item["latest_result"] else None
         items.append(item)
     return {"items": items}
@@ -451,16 +605,16 @@ def create_test_case(mid: str, data: TestCaseInput, uid=Depends(current_user)):
             raise HTTPException(422, f"A monitor can have at most {MAX_CASES_PER_MONITOR} test cases")
         case_id = str(uuid4())
         assertions = json.dumps([item.model_dump() for item in data.assertions], ensure_ascii=False)
-        c.execute("INSERT INTO test_cases(id,monitor_id,name,url,expected_status,timeout_seconds,latency_threshold_ms,assertions_json,is_active,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)", (case_id, mid, data.name, data.url, data.expected_status, data.timeout_seconds, data.latency_threshold_ms, assertions, int(data.is_active), now()))
+        c.execute("INSERT INTO test_cases(id,monitor_id,name,url,expected_status,timeout_seconds,latency_threshold_ms,assertions_json,is_active,created_at,method,request_body,headers_json,steps_json,allow_mutation,schedule_mutations,extract_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (case_id, mid, data.name, data.url, data.expected_status, data.timeout_seconds, data.latency_threshold_ms, assertions, int(data.is_active), now(), data.method, data.request_body, json.dumps(data.headers), json.dumps([step.model_dump(mode="json") for step in data.steps]), int(data.allow_mutation), int(data.schedule_mutations), json.dumps(data.extract)))
     return owned_test_case(case_id, uid)
 
 
 @app.patch("/api/v1/test-cases/{case_id}")
 def update_test_case(case_id: str, data: TestCaseInput, uid=Depends(current_user)):
     owned_test_case(case_id, uid)
-    assertions = json.dumps([item.model_dump() for item in data.assertions], ensure_ascii=False)
+    assertions = json.dumps([item.model_dump(mode="json") for item in data.assertions], ensure_ascii=False)
     with db() as c:
-        c.execute("UPDATE test_cases SET name=?,url=?,expected_status=?,timeout_seconds=?,latency_threshold_ms=?,assertions_json=?,is_active=? WHERE id=?", (data.name, data.url, data.expected_status, data.timeout_seconds, data.latency_threshold_ms, assertions, int(data.is_active), case_id))
+        c.execute("UPDATE test_cases SET name=?,url=?,expected_status=?,timeout_seconds=?,latency_threshold_ms=?,assertions_json=?,is_active=?,method=?,request_body=?,headers_json=?,steps_json=?,allow_mutation=?,schedule_mutations=?,extract_json=? WHERE id=?", (data.name, data.url, data.expected_status, data.timeout_seconds, data.latency_threshold_ms, assertions, int(data.is_active), data.method, data.request_body, json.dumps(data.headers), json.dumps([step.model_dump(mode="json") for step in data.steps]), int(data.allow_mutation), int(data.schedule_mutations), json.dumps(data.extract), case_id))
     return owned_test_case(case_id, uid)
 
 
@@ -473,8 +627,11 @@ def delete_test_case(case_id: str, uid=Depends(current_user)):
 
 
 @app.post("/api/v1/test-cases/{case_id}/run")
-async def run_test_case_now(case_id: str, uid=Depends(current_user)):
-    return await run_test_case(owned_test_case(case_id, uid))
+async def run_test_case_now(case_id: str, confirm_mutation: bool = False, uid=Depends(current_user)):
+    test_case = owned_test_case(case_id, uid)
+    if case_has_writes(test_case) and not confirm_mutation:
+        raise HTTPException(400, "This scenario contains write requests. Confirm with confirm_mutation=true before running it.")
+    return await run_test_case(test_case)
 
 
 @app.get("/api/v1/test-cases/{case_id}/results")
@@ -482,7 +639,10 @@ def test_case_history(case_id: str, limit: int = 100, uid=Depends(current_user))
     owned_test_case(case_id, uid)
     with db() as c:
         rows = c.execute("SELECT * FROM test_case_results WHERE test_case_id=? ORDER BY checked_at DESC LIMIT ?", (case_id, min(max(limit, 1), 500))).fetchall()
-    return {"items": [dict(row) for row in rows]}
+    items = [dict(row) for row in rows]
+    for item in items:
+        item["step_results"] = json.loads(item.pop("step_results_json"))
+    return {"items": items}
 
 
 @app.get("/api/v1/monitors/{mid}/results")

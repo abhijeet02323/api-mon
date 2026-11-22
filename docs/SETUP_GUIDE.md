@@ -56,6 +56,8 @@ export CHECK_INTERVAL_MIN_SECONDS=60
 export CHECK_TIMEOUT_MAX_SECONDS=20
 ```
 
+For scenario authentication, export secrets using the `SENTINEL_SECRET_` prefix, for example `export SENTINEL_SECRET_API_TOKEN='Bearer …'`. Scenario definitions store the environment-variable reference, not that value. The request body template itself is saved in SQLite, so use `{{env:SENTINEL_SECRET_PASSWORD}}` instead of typing a password into the template.
+
 ## 3. Start the API and dashboard
 
 From the project root, run:
@@ -81,7 +83,7 @@ The SQLite database is created on first app startup. To use a different path, se
 3. Add a descriptive name and a public HTTP or HTTPS endpoint that is safe to check with GET.
 4. Select **Check now** and review the status and response time.
 5. Select the monitor name to view recent checks, failure details, and the latency trend.
-6. In the monitor detail view, add named GET test cases with expected status and optional JSON assertions. Use **Run case** for an immediate test; enabled cases also run on the monitor schedule.
+6. In the monitor detail view, add a test case with its method, expected status, optional JSON assertions, headers, and body. A chain can extract JSON values and pass them into later steps. Write methods require confirmation and a second opt-in before they can run on schedule.
 7. Incidents appear below the monitor list. API calls require the bearer token returned by `/api/v1/auth/login`.
 
 The application rejects credentials in URLs and targets that resolve to local, private, reserved, or metadata IP addresses. Redirects are disabled. The scheduler checks active monitors at their configured interval; the minimum interval defaults to 60 seconds.

@@ -63,13 +63,21 @@
       <div class="edit-grid">
         <label class="edit-field">Test case name<input id="case-name" required maxlength="100" placeholder="Returns a healthy payload"></label>
         <label class="edit-field">Request URL<input id="case-url" type="url" required maxlength="2048" placeholder="https://example.org/health"></label>
+        <label class="edit-field">HTTP method<select id="case-method"><option>GET</option><option>HEAD</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option></select></label>
         <label class="edit-field">Expected HTTP status<input id="case-status" type="number" required min="100" max="599" value="200"></label>
         <label class="edit-field">Timeout (seconds)<input id="case-timeout" type="number" required min="1" max="20" value="5"></label>
         <label class="edit-field">Latency warning (ms)<input id="case-latency" type="number" min="1" max="120000" placeholder="Optional"></label>
         <label class="edit-field"><span>Enabled</span><span><input id="case-active" type="checkbox" checked> Run with scheduled checks</span></label>
       </div>
       <label class="edit-field">JSON response assertions <textarea id="case-assertions" rows="6" spellcheck="false" placeholder='[{"path":"status","operator":"equals","value":"ok"}]'></textarea></label>
-      <p class="muted">GET only. Use dot paths and numeric array indexes. Operators: equals, not_equals, contains, gt, gte, lt, lte, exists, not_exists. Response body is limited to 256 KiB for assertions.</p>
+      <label class="edit-field">Request headers (JSON) <textarea id="case-headers" rows="3" spellcheck="false" placeholder='{"Accept":"application/json","Authorization":"env:SENTINEL_SECRET_API_TOKEN"}'></textarea></label>
+      <label class="edit-field">Request body <textarea id="case-body" rows="4" spellcheck="false" placeholder='{"order_id":"{{order_id}}","password":"{{env:SENTINEL_SECRET_PASSWORD}}"}'></textarea></label>
+      <label class="edit-field">Chained steps (JSON array) <textarea id="case-steps" rows="7" spellcheck="false" placeholder='[{"name":"Fetch created item","method":"GET","url":"https://api.example.org/items/{{item_id}}","expected_status":200,"extract":{"owner":"owner.id"}}]'></textarea></label>
+      <label class="edit-field">Extract values from this response (JSON object) <textarea id="case-extract" rows="3" spellcheck="false" placeholder='{"item_id":"id","access_token":"token"}'></textarea></label>
+      <label><input id="case-allow-mutation" type="checkbox"> I understand this scenario can change data on the remote service.</label>
+      <label><input id="case-schedule-mutations" type="checkbox"> Allow write steps to run automatically on the monitor schedule.</label>
+      <p class="muted">Methods: GET, HEAD, POST, PUT, PATCH, DELETE. Write methods require confirmation when saved and again when run. Scheduled writes need a separate opt-in. Use <code>env:SENTINEL_SECRET_NAME</code> for sensitive headers and <code>{{env:SENTINEL_SECRET_NAME}}</code> in bodies. Secret values come from app environment variables and are not stored; body templates are stored in SQLite, so do not type literal credentials. Chained steps can extract JSON values for later URLs, headers, or bodies with <code>{{variable}}</code>.</p>
+      <p class="muted">Assertions use dot paths and array indexes. Operators: equals, not_equals, contains, gt, gte, lt, lte, exists, not_exists. Response bodies are capped at 256 KiB and never stored.</p>
       <p id="case-error" class="form-error" role="alert" hidden></p>
       <div class="edit-actions"><button class="secondary" type="button" onclick="byId('case-dialog').close()">Cancel</button><button id="save-case" type="submit">Save test case</button></div>
     </form>
@@ -232,7 +240,9 @@
       return cases.map(test => {
         const latest = test.latest_result;
         const lastRun = latest ? '<span class="badge ' + esc(latest.outcome.toLowerCase()) + '">' + esc(latest.outcome) + '</span> · ' + date(latest.checked_at) + ' · ' + latest.assertions_passed + '/' + latest.assertions_total + ' assertions passed' : '<span class="muted">Not run yet</span>';
-        return '<article><strong>' + esc(test.name) + '</strong> <span class="badge">' + (test.is_active ? 'Scheduled' : 'Disabled') + '</span><p class="muted">GET ' + esc(test.url.split('?')[0]) + ' · expects HTTP ' + test.expected_status + ' · ' + test.assertions.length + ' assertions</p><p>' + lastRun + '</p><div class="actions"><button onclick="runCase(\'' + test.id + '\',\'' + test.monitor_id + '\')">Run case</button><button class="secondary" onclick="showCaseHistory(\'' + test.id + '\')">History</button><button class="secondary" onclick="openCaseForm(\'' + test.monitor_id + '\',\'' + test.id + '\')">Edit</button><button class="secondary" onclick="deleteCase(\'' + test.id + '\',\'' + test.monitor_id + '\')">Delete</button></div></article>';
+        const methods = [test.method].concat(test.steps.map(step => step.method));
+        const stepOutcomes = latest && latest.step_results ? latest.step_results.map(step => esc(step.name) + ': ' + esc(step.outcome)).join(' → ') : '';
+        return '<article><strong>' + esc(test.name) + '</strong> <span class="badge">' + (test.is_active ? (test.schedule_mutations ? 'Scheduled · writes enabled' : 'Scheduled') : 'Manual only') + '</span><p class="muted">' + esc(methods.join(' → ')) + ' · expects HTTP ' + test.expected_status + ' · ' + test.assertions.length + ' assertions</p><p>' + lastRun + (stepOutcomes ? '<br><small>' + stepOutcomes + '</small>' : '') + '</p><div class="actions"><button onclick="runCase(\'' + test.id + '\',\'' + test.monitor_id + '\')">Run case</button><button class="secondary" onclick="showCaseHistory(\'' + test.id + '\')">History</button><button class="secondary" onclick="openCaseForm(\'' + test.monitor_id + '\',\'' + test.id + '\')">Edit</button><button class="secondary" onclick="deleteCase(\'' + test.id + '\',\'' + test.monitor_id + '\')">Delete</button></div></article>';
       }).join('');
     }
     function openCaseForm(monitorId, caseId) {
@@ -242,23 +252,37 @@
       byId('case-title').textContent = current ? 'Edit API test case' : 'Add API test case';
       byId('case-name').value = current ? current.name : '';
       byId('case-url').value = current ? current.url : '';
+      byId('case-method').value = current ? current.method : 'GET';
       byId('case-status').value = current ? current.expected_status : 200;
       byId('case-timeout').value = current ? current.timeout_seconds : 5;
       byId('case-latency').value = current && current.latency_threshold_ms !== null ? current.latency_threshold_ms : '';
       byId('case-active').checked = current ? Boolean(current.is_active) : true;
       byId('case-assertions').value = current ? JSON.stringify(current.assertions, null, 2) : '';
+      byId('case-headers').value = current ? JSON.stringify(current.headers, null, 2) : '';
+      byId('case-body').value = current ? current.request_body || '' : '';
+      byId('case-steps').value = current ? JSON.stringify(current.steps, null, 2) : '';
+      byId('case-extract').value = current ? JSON.stringify(current.extract, null, 2) : '';
+      byId('case-allow-mutation').checked = current ? Boolean(current.allow_mutation) : false;
+      byId('case-schedule-mutations').checked = current ? Boolean(current.schedule_mutations) : false;
       byId('case-error').hidden = true; byId('case-error').textContent = '';
       byId('case-dialog').showModal(); byId('case-name').focus();
     }
     async function saveCase(event) {
       event.preventDefault();
       const errorBox = byId('case-error'), saveButton = byId('save-case'), caseId = byId('case-id').value, monitorId = byId('case-monitor-id').value;
-      let assertions;
-      try { assertions = JSON.parse(byId('case-assertions').value || '[]'); }
-      catch (_) { errorBox.textContent = 'Assertions must be valid JSON. Use [] if this case only checks the HTTP status.'; errorBox.hidden = false; return; }
-      if (!Array.isArray(assertions)) { errorBox.textContent = 'Assertions must be a JSON array.'; errorBox.hidden = false; return; }
-      if (assertions.length > 20) { errorBox.textContent = 'A test case can have at most 20 assertions.'; errorBox.hidden = false; return; }
-      const payload = {name: byId('case-name').value.trim(), url: byId('case-url').value.trim(), expected_status: Number(byId('case-status').value), timeout_seconds: Number(byId('case-timeout').value), latency_threshold_ms: byId('case-latency').value === '' ? null : Number(byId('case-latency').value), assertions, is_active: byId('case-active').checked};
+      let assertions, headers, steps, extract;
+      try {
+        assertions = JSON.parse(byId('case-assertions').value || '[]');
+        headers = JSON.parse(byId('case-headers').value || '{}');
+        steps = JSON.parse(byId('case-steps').value || '[]');
+        extract = JSON.parse(byId('case-extract').value || '{}');
+      } catch (_) { errorBox.textContent = 'Assertions, headers, chained steps, and extracts must be valid JSON.'; errorBox.hidden = false; return; }
+      if (!Array.isArray(assertions) || assertions.length > 20) { errorBox.textContent = 'Assertions must be an array with at most 20 entries.'; errorBox.hidden = false; return; }
+      if (!headers || Array.isArray(headers) || typeof headers !== 'object') { errorBox.textContent = 'Request headers must be a JSON object of string values.'; errorBox.hidden = false; return; }
+      if (Object.values(headers).some(value => typeof value !== 'string')) { errorBox.textContent = 'Every request header value must be a string.'; errorBox.hidden = false; return; }
+      if (!Array.isArray(steps) || steps.length > 10) { errorBox.textContent = 'Chained steps must be a JSON array with at most 10 entries.'; errorBox.hidden = false; return; }
+      if (!extract || Array.isArray(extract) || typeof extract !== 'object') { errorBox.textContent = 'Extract rules must be a JSON object mapping variable names to JSON paths.'; errorBox.hidden = false; return; }
+      const payload = {name: byId('case-name').value.trim(), url: byId('case-url').value.trim(), method: byId('case-method').value, expected_status: Number(byId('case-status').value), timeout_seconds: Number(byId('case-timeout').value), latency_threshold_ms: byId('case-latency').value === '' ? null : Number(byId('case-latency').value), assertions, headers, request_body: byId('case-body').value || null, steps, extract, is_active: byId('case-active').checked, allow_mutation: byId('case-allow-mutation').checked, schedule_mutations: byId('case-schedule-mutations').checked};
       if (!payload.name) { errorBox.textContent = 'Enter a name for this test case.'; errorBox.hidden = false; return; }
       errorBox.hidden = true; saveButton.disabled = true; saveButton.textContent = 'Saving…';
       try {
@@ -268,14 +292,17 @@
       finally { saveButton.disabled = false; saveButton.textContent = 'Save test case'; }
     }
     async function runCase(caseId, monitorId) {
-      try { const result = await req('/test-cases/' + caseId + '/run', 'POST'); await showDetail(monitorId); byId('msg').textContent = 'Test case finished: ' + result.outcome; }
+      const testCase = JSON.parse(byId('case-list').dataset.cases || '[]').find(item => item.id === caseId);
+      const writes = testCase && (['POST','PUT','PATCH','DELETE'].includes(testCase.method) || testCase.steps.some(step => ['POST','PUT','PATCH','DELETE'].includes(step.method)));
+      if (writes && !window.confirm('This test sends write requests and may change the remote service. Run it now?')) return;
+      try { const result = await req('/test-cases/' + caseId + '/run' + (writes ? '?confirm_mutation=true' : ''), 'POST'); await showDetail(monitorId); byId('msg').textContent = 'Test case finished: ' + result.outcome; }
       catch (error) { byId('msg').textContent = error.message; }
     }
     async function showCaseHistory(caseId) {
       const panel = byId('case-history'); panel.innerHTML = '<p class="muted">Loading test case history…</p>';
       try {
         const result = await req('/test-cases/' + caseId + '/results?limit=50');
-        panel.innerHTML = '<h3>Test case run history</h3>' + (result.items.length ? '<div class="scroll"><table><thead><tr><th>Checked</th><th>Outcome</th><th>HTTP</th><th>Latency</th><th>Assertions</th><th>Details</th></tr></thead><tbody>' + result.items.map(item => '<tr><td>' + date(item.checked_at) + '</td><td><span class="badge ' + esc(item.outcome.toLowerCase()) + '">' + esc(item.outcome) + '</span></td><td>' + (item.http_status ?? '—') + '</td><td>' + (item.latency_ms ?? '—') + ' ms</td><td>' + item.assertions_passed + '/' + item.assertions_total + '</td><td>' + esc(item.error_message || item.error_type || '—') + '</td></tr>').join('') + '</tbody></table></div>' : '<p class="muted">No runs recorded yet.</p>');
+        panel.innerHTML = '<h3>Test case run history</h3>' + (result.items.length ? '<div class="scroll"><table><thead><tr><th>Checked</th><th>Outcome</th><th>HTTP</th><th>Latency</th><th>Assertions</th><th>Step outcomes</th><th>Details</th></tr></thead><tbody>' + result.items.map(item => '<tr><td>' + date(item.checked_at) + '</td><td><span class="badge ' + esc(item.outcome.toLowerCase()) + '">' + esc(item.outcome) + '</span></td><td>' + (item.http_status ?? '—') + '</td><td>' + (item.latency_ms ?? '—') + ' ms</td><td>' + item.assertions_passed + '/' + item.assertions_total + '</td><td>' + item.step_results.map(step => esc(step.name) + ': ' + esc(step.outcome)).join(' → ') + '</td><td>' + esc(item.error_message || item.error_type || '—') + '</td></tr>').join('') + '</tbody></table></div>' : '<p class="muted">No runs recorded yet.</p>');
       } catch (error) { panel.textContent = error.message; }
     }
     async function deleteCase(caseId, monitorId) {
