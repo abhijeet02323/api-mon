@@ -5,37 +5,53 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SentinelAPI</title>
   <style>
-    :root{color-scheme:dark}*{box-sizing:border-box}body{font:16px system-ui;background:#0b1220;color:#e5edf8;max-width:1180px;margin:38px auto;padding:0 20px}
-    input,button{padding:10px 12px;margin:4px;border-radius:8px;border:1px solid #334155;background:#111c30;color:inherit}button{background:#2563eb;border-color:#2563eb;cursor:pointer}button:hover{background:#1d4ed8}
-    section{background:#111c30;padding:18px;border-radius:12px;margin:14px 0}.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px}.toolbar h2{margin:8px 0}.cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.card{background:#111c30;border:1px solid #26364c;padding:16px;border-radius:12px}.card span{color:#9aabc2;font-size:13px}.card strong{display:block;font-size:26px;margin-top:6px}table{width:100%;border-collapse:collapse;min-width:720px}td,th{text-align:left;padding:10px;border-bottom:1px solid #334155;vertical-align:top}th{color:#9aabc2;font-weight:500}
-    .muted,small{color:#9aabc2}.link{padding:2px 0;border:0;background:none;color:#93c5fd;text-align:left}.badge{display:inline-block;border-radius:99px;background:#26364c;padding:3px 9px;font-size:12px}.badge.up{background:#064e3b;color:#a7f3d0}.badge.degraded{background:#713f12;color:#fde68a}.badge.down,.badge.error,.badge.timeout{background:#7f1d1d;color:#fecaca}
-    .summary{display:flex;gap:28px;flex-wrap:wrap;padding:10px 0}.summary span{color:#9aabc2}.summary strong{display:block;color:#e5edf8;font-size:20px}.chart{background:#0b1220;border-radius:10px;padding:10px;overflow:hidden}.chart svg{width:100%;height:auto;max-height:190px}.scroll{overflow-x:auto}#msg{margin-left:8px}.form-error{color:#fecaca;background:#451a1a;border:1px solid #7f1d1d;border-radius:8px;padding:10px;white-space:pre-line}.muted code{color:#bfdbfe}.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.filters input{flex:1;min-width:210px}.filters select{padding:10px;border-radius:8px;background:#111c30;color:inherit;border:1px solid #334155}.secondary{background:#26364c;border-color:#40516b}.success{color:#a7f3d0}.empty{padding:20px;text-align:center;color:#9aabc2}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}button:disabled{opacity:.6;cursor:wait}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #93c5fd;outline-offset:2px}
-    dialog{width:min(620px,calc(100% - 24px));border:1px solid #40516b;border-radius:14px;background:#111c30;color:#e5edf8;padding:22px}dialog::backdrop{background:#020617cc;backdrop-filter:blur(3px)}dialog h2{margin-top:0}.edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.edit-field{display:flex;flex-direction:column;gap:4px;margin:4px}.edit-field input,.edit-field textarea{margin:0;width:100%}.edit-field textarea{padding:10px 12px;border-radius:8px;border:1px solid #334155;background:#0b1220;color:inherit;font:13px ui-monospace,monospace;resize:vertical}.edit-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
-    @media(max-width:760px){body{margin:18px auto;padding:0 12px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.toolbar{align-items:flex-start}.toolbar h2{font-size:20px}}
+    :root{color-scheme:dark;--bg:#080b09;--surface:#111512;--surface-raised:#171c18;--line:#29312b;--text:#f4f7f3;--muted:#a1aaa2;--green:#39d98a;--green-dark:#143c29;--green-hover:#24bd72;--danger:#ff7777;--amber:#f4c35e}
+    *{box-sizing:border-box}body{font:15px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:radial-gradient(ellipse at 50% -25%,#173221 0,transparent 42%),var(--bg);color:var(--text);max-width:1240px;min-height:100vh;margin:0 auto;padding:32px 28px 64px}
+    [hidden]{display:none!important}h1,h2,h3,p{margin-top:0}h1{font-size:30px;line-height:1.15;letter-spacing:-.04em;margin:0}h2{font-size:20px;line-height:1.3;letter-spacing:-.025em;margin:0 0 14px}h3{font-size:16px;margin:24px 0 12px}.muted,small{color:var(--muted)}code{color:#9deabd;background:#0b100c;padding:2px 5px;border-radius:4px}
+    .app-header{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:24px}.app-header h1{display:flex;align-items:center;gap:12px}.app-header h1:before{content:"";width:12px;height:12px;border-radius:4px;background:var(--green);box-shadow:0 0 20px #39d98a88}.app-header .muted{margin:7px 0 0}.eyebrow{margin:0 0 5px;color:var(--green);font-size:11px;font-weight:750;letter-spacing:.16em}.live-label{display:inline-flex;align-items:center;gap:9px;color:#c5cec6;background:#151b16;border:1px solid var(--line);padding:8px 12px;border-radius:99px;font-size:12px}.live-label i{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 9px var(--green)}body>section:first-of-type{max-width:610px}
+    section{background:linear-gradient(145deg,#141915,#101310);border:1px solid var(--line);padding:24px;border-radius:16px;margin:16px 0;box-shadow:0 12px 36px #0003}section>section{background:var(--bg);box-shadow:none}section>h2{margin:24px 0 12px}.toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:26px 0 12px}.toolbar h2{margin:0}.toolbar>div{display:flex;align-items:center;gap:8px}
+    input,select,button{font:inherit;color:var(--text);border:1px solid #343c35;border-radius:9px;background:#0c100d;padding:10px 13px;min-height:42px}input::placeholder,textarea::placeholder{color:#747e75}input:hover,select:hover,textarea:hover{border-color:#566258}input:focus,select:focus,textarea:focus{outline:0;border-color:var(--green);box-shadow:0 0 0 3px #39d98a20}button{background:var(--green);border-color:var(--green);color:#07120b;font-weight:650;cursor:pointer;transition:background .15s,border-color .15s,transform .15s}button:hover{background:var(--green-hover);border-color:var(--green-hover);transform:translateY(-1px)}button:active{transform:translateY(0)}button:disabled{opacity:.55;cursor:wait;transform:none}.secondary{background:#1b211c;border-color:#343c35;color:var(--text)}.secondary:hover{background:#252d26;border-color:#4b594d}.link{padding:2px 0;min-height:auto;border:0;background:none;color:var(--green);text-align:left}.link:hover{background:none;color:#8df0b9;transform:none}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+    #email,#password{display:block;width:min(100%,520px);margin:6px 0 12px}.edit-field{display:flex;flex-direction:column;gap:6px;margin:8px 0;color:#dce3dc;font-size:14px;font-weight:550}.edit-field input,.edit-field textarea{margin:0;width:100%}.edit-field textarea{padding:12px;border-radius:9px;border:1px solid #343c35;background:#0b0f0c;color:inherit;font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;resize:vertical}#add-monitor-form{display:grid;grid-template-columns:minmax(180px,.75fr) minmax(250px,1.5fr) auto;align-items:end;gap:10px}#add-monitor-form .edit-field{margin:0}#add-monitor-form button{margin-bottom:0}
+    .cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:20px 0 30px}.card{background:var(--surface-raised);border:1px solid var(--line);padding:17px;border-radius:12px;min-height:100px}.card span{color:var(--muted);font-size:13px}.card strong{display:block;font-size:29px;line-height:1.2;margin-top:7px;letter-spacing:-.03em}.card:nth-child(2) strong{color:var(--green)}.card:nth-child(3) strong{color:var(--amber)}
+    .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.filters input{width:250px;max-width:100%}.filters select{min-width:145px}.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:11px}table{width:100%;border-collapse:collapse;min-width:760px;background:#0e120f}td,th{text-align:left;padding:13px 14px;border-bottom:1px solid #242b25;vertical-align:middle}th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.07em;font-weight:650;background:#151a16}tbody tr:last-child td{border-bottom:0}tbody tr:hover{background:#151b16}td:last-child{min-width:260px}.badge{display:inline-flex;align-items:center;gap:6px;border-radius:99px;background:#242a25;color:#d8dfd8;padding:4px 10px;font-size:12px;font-weight:650;white-space:nowrap}.badge.up{background:#123b28;color:#91f0b6}.badge.degraded{background:#453819;color:#ffe09a}.badge.down,.badge.error,.badge.timeout,.badge.validation_failed{background:#431f1d;color:#ffaaa0}.badge.paused{background:#292e2a;color:#c3cbc4}
+    article{background:var(--surface-raised);border:1px solid var(--line);padding:17px 18px;border-radius:12px;margin:10px 0}article>strong{font-size:15px}article p{margin:9px 0;color:#d4dbd4}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.summary{display:flex;gap:12px;flex-wrap:wrap;padding:10px 0}.summary span{flex:1;min-width:145px;padding:13px 15px;border:1px solid var(--line);border-radius:10px;background:var(--surface-raised);color:var(--muted);font-size:13px}.summary strong{display:block;color:var(--text);font-size:20px;margin-top:4px}.chart{background:#0a0e0b;border:1px solid var(--line);border-radius:11px;padding:14px;overflow:hidden}.chart svg{width:100%;height:auto;max-height:190px}.chart line{stroke:#374139}.chart polyline{stroke:var(--green)}
+    #msg{display:inline-block;margin:8px 0;color:var(--green);font-size:14px}.form-error{color:#ffb3ac;background:#321a18;border:1px solid #713932;border-radius:9px;padding:11px 13px;white-space:pre-line}.success{color:#a3f2bd;background:#123322;border:1px solid #245c3b;border-radius:9px;padding:11px 13px}.empty{padding:28px;text-align:center;color:var(--muted)}
+    dialog{width:min(680px,calc(100% - 24px));max-height:90vh;overflow:auto;border:1px solid #39443b;border-radius:16px;background:#121713;color:var(--text);padding:25px;box-shadow:0 24px 80px #0009}dialog::backdrop{background:#000b;backdrop-filter:blur(4px)}dialog h2{margin:0 0 18px}.edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.edit-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}.edit-actions button{min-width:110px}
+    @media(max-width:800px){body{padding:24px 16px 48px}.cards{grid-template-columns:repeat(3,minmax(0,1fr))}.toolbar{align-items:flex-start}.toolbar h2{font-size:18px}.toolbar .filters{width:100%}.filters input{flex:1;width:auto}.summary span{min-width:calc(50% - 8px)}}
+    @media(max-width:560px){body{padding:18px 12px 36px}.app-header{align-items:flex-start}.app-header h1{font-size:26px}.live-label{font-size:0;padding:10px}.live-label i{width:8px;height:8px}section{padding:17px;border-radius:13px}.cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.card{padding:13px;min-height:88px}.card strong{font-size:25px}.toolbar{flex-direction:column;gap:10px}.toolbar>div{width:100%;flex-wrap:wrap}.toolbar>div button{flex:1}.filters{display:grid!important;grid-template-columns:1fr;width:100%}.filters input,.filters select{width:100%;min-width:0}#add-monitor-form,.edit-grid{grid-template-columns:1fr}#add-monitor-form button{width:100%}.summary span{min-width:100%}.edit-actions{flex-direction:column-reverse}.edit-actions button{width:100%}#login-button,#register-button{margin-top:12px}.actions button{flex:1}td:last-child{min-width:260px}}
+    @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important}}
   </style>
 </head>
 <body>
-  <h1>SentinelAPI</h1>
-  <p class="muted">API availability monitoring</p>
-  <section>
-    <h2>Sign in / Register</h2>
-    <label class="edit-field">Email<input id="email" type="email" placeholder="you@example.com" autocomplete="email" required maxlength="254"></label>
-    <label class="edit-field">Password<input id="password" type="password" placeholder="At least 10 characters" autocomplete="current-password" required minlength="10" maxlength="128"></label>
-    <small class="muted">Passwords are stored as one-way salted hashes. Sign-in uses a protected session cookie.</small><br>
-    <button id="login-button" onclick="auth('login')">Sign in</button>
-    <button class="secondary" id="register-button" onclick="auth('register')">Create account</button>
-    <span id="msg" role="status"></span>
+  <header class="app-header">
+    <div><p class="eyebrow">API OBSERVABILITY</p><h1>SentinelAPI</h1><p class="muted">Know when your APIs slow down or go offline.</p></div>
+    <span class="live-label"><i></i> Monitoring console</span>
+  </header>
+  <section id="auth-panel">
+    <h2>Welcome back</h2>
+    <p class="muted">Sign in to view and manage your monitors.</p>
+    <form id="auth-form" onsubmit="auth('login', event)">
+      <label class="edit-field">Email<input id="email" type="email" placeholder="you@example.com" autocomplete="email" required maxlength="254"></label>
+      <label class="edit-field">Password<input id="password" type="password" placeholder="At least 10 characters" autocomplete="current-password" required minlength="10" maxlength="128"></label>
+      <small class="muted">Your password is stored as a one-way salted hash and sign-in uses a protected session.</small><br>
+      <button id="login-button" type="submit">Sign in</button>
+      <button class="secondary" id="register-button" type="button" onclick="auth('register')">Create account</button>
+    </form>
   </section>
+  <span id="msg" role="status" aria-live="polite"></span>
   <section id="main" hidden>
     <div class="toolbar"><h2>Monitor overview</h2><div><button class="secondary" onclick="load()">Refresh</button><button class="secondary" onclick="logout()">Sign out</button></div></div>
     <div class="cards" aria-live="polite"><div class="card"><span>Total monitors</span><strong id="stat-total">0</strong></div><div class="card"><span>Up</span><strong id="stat-up">0</strong></div><div class="card"><span>Degraded</span><strong id="stat-degraded">0</strong></div><div class="card"><span>Down</span><strong id="stat-down">0</strong></div><div class="card"><span>Open incidents</span><strong id="stat-incidents">0</strong></div></div>
     <h2>Add a monitor</h2>
-    <input id="monitor-name" placeholder="Monitor name" autocomplete="off">
-    <input id="monitor-url" type="url" placeholder="https://example.org/" autocomplete="url">
-    <button id="add-button" onclick="add()">Add monitor</button>
+    <p class="muted">Start with a public endpoint. SentinelAPI will check it on the selected default schedule.</p>
+    <form id="add-monitor-form" onsubmit="add(event)">
+      <label class="edit-field" for="monitor-name">Monitor name<input id="monitor-name" placeholder="e.g. Production API" autocomplete="off" required maxlength="100"></label>
+      <label class="edit-field" for="monitor-url">Endpoint URL<input id="monitor-url" type="url" placeholder="https://api.example.com/health" autocomplete="url" required maxlength="2048"></label>
+      <button id="add-button" type="submit">Add monitor</button>
+    </form>
     <p id="create-error" class="form-error" role="alert" hidden></p>
     <p class="muted">Use a full public HTTP(S) address, for example <code>https://example.org/</code>. Do not include login credentials. Local, private, and metadata addresses are blocked.</p>
-    <div class="toolbar"><h2>Monitors</h2><div class="filters"><input id="monitor-search" type="search" placeholder="Search by name or URL" oninput="renderMonitors()"><select id="status-filter" onchange="renderMonitors()"><option value="ALL">All statuses</option><option>UNKNOWN</option><option>UP</option><option>DEGRADED</option><option>DOWN</option><option>TIMEOUT</option><option>ERROR</option><option>PAUSED</option></select></div></div>
+    <div class="toolbar"><h2>Monitors</h2><div class="filters"><input id="monitor-search" type="search" aria-label="Search monitors by name or URL" placeholder="Search monitors…" oninput="renderMonitors()"><select id="status-filter" aria-label="Filter monitors by status" onchange="renderMonitors()"><option value="ALL">All statuses</option><option>UNKNOWN</option><option>UP</option><option>DEGRADED</option><option>DOWN</option><option>TIMEOUT</option><option>ERROR</option><option>PAUSED</option></select></div></div>
     <div class="scroll"><table><thead><tr><th>Name</th><th>Endpoint</th><th>Status</th><th>Latency</th><th>Actions</th></tr></thead><tbody id="rows"></tbody></table></div>
     <h2>Incidents</h2><div id="incidents"></div>
     <section id="detail" hidden aria-live="polite"></section>
@@ -90,6 +106,7 @@
     const req = async (path, method, data) => {
       const response = await fetch('/api/v1' + path, {
         method: method || 'GET',
+        credentials: 'same-origin',
         headers: {'Content-Type': 'application/json'},
         body: data ? JSON.stringify(data) : undefined
       });
@@ -109,17 +126,19 @@
     const esc = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
     const date = value => value ? new Date(value).toLocaleString() : '—';
 
-    async function auth(mode) {
+    async function auth(mode, event) {
+      if (event) event.preventDefault();
       const loginButton = byId('login-button'), registerButton = byId('register-button');
       loginButton.disabled = true; registerButton.disabled = true; byId('msg').textContent = mode === 'register' ? 'Creating account…' : 'Signing in…';
       try {
         if (mode === 'register') await req('/auth/register', 'POST', {email: byId('email').value.trim(), password: byId('password').value});
         await req('/auth/login', 'POST', {email: byId('email').value.trim(), password: byId('password').value});
-        byId('password').value = ''; byId('main').hidden = false; byId('msg').textContent = 'Signed in'; await load();
+        byId('password').value = ''; byId('auth-panel').hidden = true; byId('main').hidden = false; byId('msg').textContent = 'Signed in'; await load();
       } catch (error) { byId('msg').textContent = error.message; }
       finally { loginButton.disabled = false; registerButton.disabled = false; }
     }
-    async function add() {
+    async function add(event) {
+      if (event) event.preventDefault();
       const errorBox = byId('create-error'), addButton = byId('add-button');
       errorBox.hidden = true; errorBox.textContent = ''; errorBox.className = 'form-error'; errorBox.setAttribute('role', 'alert');
       const monitorName = byId('monitor-name').value.trim(), target = byId('monitor-url').value.trim();
@@ -194,7 +213,6 @@
       catch (error) { byId('msg').textContent = error.message; }
     }
     async function load() {
-      if (!token) return;
       byId('msg').textContent = 'Refreshing monitor data…';
       try {
         const data = await req('/monitors');
@@ -221,7 +239,7 @@
     async function logout() {
       try { await req('/auth/logout', 'POST'); } catch (_) {}
       monitorCache = [];
-      byId('main').hidden = true; byId('msg').textContent = 'Signed out';
+      byId('main').hidden = true; byId('auth-panel').hidden = false; byId('msg').textContent = 'Signed out';
       byId('rows').innerHTML = ''; byId('incidents').innerHTML = '';
     }
     async function showDetail(id) {
@@ -320,7 +338,7 @@
       const dots = coords.map((point, index) => '<circle cx="' + point[0] + '" cy="' + point[1] + '" r="4" fill="' + (points[index].outcome === 'UP' ? '#34d399' : points[index].outcome === 'DEGRADED' ? '#fbbf24' : '#fb7185') + '"><title>' + esc(points[index].outcome) + ' · ' + points[index].latency_ms + ' ms · ' + date(points[index].checked_at) + '</title></circle>').join('');
       return '<svg viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="Check response time trend"><line x1="' + pad + '" y1="' + (height - pad) + '" x2="' + (width - pad) + '" y2="' + (height - pad) + '" stroke="#40516b"/><polyline points="' + line + '" fill="none" stroke="#60a5fa" stroke-width="3"/>' + dots + '</svg><small class="muted">Oldest shown ← · latency scale 0–' + max.toFixed(0) + ' ms · → newest</small>';
     }
-    req('/monitors').then(() => { byId('main').hidden = false; load(); }).catch(() => { byId('main').hidden = true; });
+    req('/monitors').then(() => { byId('auth-panel').hidden = true; byId('main').hidden = false; load(); }).catch(() => { byId('auth-panel').hidden = false; byId('main').hidden = true; });
   </script>
 </body>
 </html>
