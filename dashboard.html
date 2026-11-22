@@ -10,6 +10,7 @@
     [hidden]{display:none!important}h1,h2,h3,p{margin-top:0}h1{font-size:30px;line-height:1.15;letter-spacing:-.04em;margin:0}h2{font-size:20px;line-height:1.3;letter-spacing:-.025em;margin:0 0 14px}h3{font-size:16px;margin:24px 0 12px}.muted,small{color:var(--muted)}code{color:#9deabd;background:#0b100c;padding:2px 5px;border-radius:4px}
     .app-header{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:24px}.app-header h1{display:flex;align-items:center;gap:12px}.app-header h1:before{content:"";width:12px;height:12px;border-radius:4px;background:var(--green);box-shadow:0 0 20px #39d98a88}.app-header .muted{margin:7px 0 0}.eyebrow{margin:0 0 5px;color:var(--green);font-size:11px;font-weight:750;letter-spacing:.16em}.live-label{display:inline-flex;align-items:center;gap:9px;color:#c5cec6;background:#151b16;border:1px solid var(--line);padding:8px 12px;border-radius:99px;font-size:12px}.live-label i{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 9px var(--green)}body>section:first-of-type{max-width:610px}
     section{background:linear-gradient(145deg,#141915,#101310);border:1px solid var(--line);padding:24px;border-radius:16px;margin:16px 0;box-shadow:0 12px 36px #0003}section>section{background:var(--bg);box-shadow:none}section>h2{margin:24px 0 12px}.toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:26px 0 12px}.toolbar h2{margin:0}.toolbar>div{display:flex;align-items:center;gap:8px}
+    .view-nav{display:flex;gap:8px;overflow-x:auto;padding:0 0 8px;border-bottom:1px solid var(--line)}.view-nav button{white-space:nowrap}.view-nav button.active{background:var(--green);border-color:var(--green);color:#07120b}.view-nav button span{display:inline-flex;min-width:20px;height:20px;align-items:center;justify-content:center;margin-left:5px;padding:0 5px;border-radius:99px;background:#343b35;color:var(--text);font-size:11px}.dashboard-view{margin-top:14px}.toolbar>div.toolbar-copy{display:block}.history-picker{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px}.history-picker select{min-width:220px}
     input,select,button{font:inherit;color:var(--text);border:1px solid #343c35;border-radius:9px;background:#0c100d;padding:10px 13px;min-height:42px}input::placeholder,textarea::placeholder{color:#747e75}input:hover,select:hover,textarea:hover{border-color:#566258}input:focus,select:focus,textarea:focus{outline:0;border-color:var(--green);box-shadow:0 0 0 3px #39d98a20}button{background:var(--green);border-color:var(--green);color:#07120b;font-weight:650;cursor:pointer;transition:background .15s,border-color .15s,transform .15s}button:hover{background:var(--green-hover);border-color:var(--green-hover);transform:translateY(-1px)}button:active{transform:translateY(0)}button:disabled{opacity:.55;cursor:wait;transform:none}.secondary{background:#1b211c;border-color:#343c35;color:var(--text)}.secondary:hover{background:#252d26;border-color:#4b594d}.link{padding:2px 0;min-height:auto;border:0;background:none;color:var(--green);text-align:left}.link:hover{background:none;color:#8df0b9;transform:none}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--green);outline-offset:2px}
     #email,#password{display:block;width:min(100%,520px);margin:6px 0 12px}.edit-field{display:flex;flex-direction:column;gap:6px;margin:8px 0;color:#dce3dc;font-size:14px;font-weight:550}.edit-field input,.edit-field textarea{margin:0;width:100%}.edit-field textarea{padding:12px;border-radius:9px;border:1px solid #343c35;background:#0b0f0c;color:inherit;font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;resize:vertical}#add-monitor-form{display:grid;grid-template-columns:minmax(180px,.75fr) minmax(250px,1.5fr) auto;align-items:end;gap:10px}#add-monitor-form .edit-field{margin:0}#add-monitor-form button{margin-bottom:0}
     .cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:20px 0 30px}.card{background:var(--surface-raised);border:1px solid var(--line);padding:17px;border-radius:12px;min-height:100px}.card span{color:var(--muted);font-size:13px}.card strong{display:block;font-size:29px;line-height:1.2;margin-top:7px;letter-spacing:-.03em}.card:nth-child(2) strong{color:var(--green)}.card:nth-child(3) strong{color:var(--amber)}
@@ -18,7 +19,7 @@
     #msg{display:inline-block;margin:8px 0;color:var(--green);font-size:14px}.form-error{color:#ffb3ac;background:#321a18;border:1px solid #713932;border-radius:9px;padding:11px 13px;white-space:pre-line}.success{color:#a3f2bd;background:#123322;border:1px solid #245c3b;border-radius:9px;padding:11px 13px}.empty{padding:28px;text-align:center;color:var(--muted)}
     dialog{width:min(680px,calc(100% - 24px));max-height:90vh;overflow:auto;border:1px solid #39443b;border-radius:16px;background:#121713;color:var(--text);padding:25px;box-shadow:0 24px 80px #0009}dialog::backdrop{background:#000b;backdrop-filter:blur(4px)}dialog h2{margin:0 0 18px}.edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.edit-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}.edit-actions button{min-width:110px}
     @media(max-width:800px){body{padding:24px 16px 48px}.cards{grid-template-columns:repeat(3,minmax(0,1fr))}.toolbar{align-items:flex-start}.toolbar h2{font-size:18px}.toolbar .filters{width:100%}.filters input{flex:1;width:auto}.summary span{min-width:calc(50% - 8px)}}
-    @media(max-width:560px){body{padding:18px 12px 36px}.app-header{align-items:flex-start}.app-header h1{font-size:26px}.live-label{font-size:0;padding:10px}.live-label i{width:8px;height:8px}section{padding:17px;border-radius:13px}.cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.card{padding:13px;min-height:88px}.card strong{font-size:25px}.toolbar{flex-direction:column;gap:10px}.toolbar>div{width:100%;flex-wrap:wrap}.toolbar>div button{flex:1}.filters{display:grid!important;grid-template-columns:1fr;width:100%}.filters input,.filters select{width:100%;min-width:0}#add-monitor-form,.edit-grid{grid-template-columns:1fr}#add-monitor-form button{width:100%}.summary span{min-width:100%}.edit-actions{flex-direction:column-reverse}.edit-actions button{width:100%}#login-button,#register-button{margin-top:12px}.actions button{flex:1}td:last-child{min-width:260px}}
+    @media(max-width:560px){body{padding:18px 12px 36px}.app-header{align-items:flex-start}.app-header h1{font-size:26px}.live-label{font-size:0;padding:10px}.live-label i{width:8px;height:8px}section{padding:17px;border-radius:13px}.cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.card{padding:13px;min-height:88px}.card strong{font-size:25px}.toolbar{flex-direction:column;gap:10px}.toolbar>div{width:100%;flex-wrap:wrap}.toolbar>div button{flex:1}.filters{display:grid!important;grid-template-columns:1fr;width:100%}.filters input,.filters select{width:100%;min-width:0}#add-monitor-form,.edit-grid{grid-template-columns:1fr}#add-monitor-form button{width:100%}.history-picker{width:100%;align-items:stretch;flex-direction:column}.history-picker select{width:100%;min-width:0}.summary span{min-width:100%}.edit-actions{flex-direction:column-reverse}.edit-actions button{width:100%}#login-button,#register-button{margin-top:12px}.actions button{flex:1}td:last-child{min-width:260px}}
     @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important}}
   </style>
 </head>
@@ -41,20 +42,37 @@
   <span id="msg" role="status" aria-live="polite"></span>
   <section id="main" hidden>
     <div class="toolbar"><h2>Monitor overview</h2><div><button class="secondary" onclick="load()">Refresh</button><button class="secondary" onclick="logout()">Sign out</button></div></div>
-    <div class="cards" aria-live="polite"><div class="card"><span>Total monitors</span><strong id="stat-total">0</strong></div><div class="card"><span>Up</span><strong id="stat-up">0</strong></div><div class="card"><span>Degraded</span><strong id="stat-degraded">0</strong></div><div class="card"><span>Down</span><strong id="stat-down">0</strong></div><div class="card"><span>Open incidents</span><strong id="stat-incidents">0</strong></div></div>
-    <h2>Add a monitor</h2>
-    <p class="muted">Start with a public endpoint. SentinelAPI will check it on the selected default schedule.</p>
-    <form id="add-monitor-form" onsubmit="add(event)">
-      <label class="edit-field" for="monitor-name">Monitor name<input id="monitor-name" placeholder="e.g. Production API" autocomplete="off" required maxlength="100"></label>
-      <label class="edit-field" for="monitor-url">Endpoint URL<input id="monitor-url" type="url" placeholder="https://api.example.com/health" autocomplete="url" required maxlength="2048"></label>
-      <button id="add-button" type="submit">Add monitor</button>
-    </form>
-    <p id="create-error" class="form-error" role="alert" hidden></p>
-    <p class="muted">Use a full public HTTP(S) address, for example <code>https://example.org/</code>. Do not include login credentials. Local, private, and metadata addresses are blocked.</p>
-    <div class="toolbar"><h2>Monitors</h2><div class="filters"><input id="monitor-search" type="search" aria-label="Search monitors by name or URL" placeholder="Search monitors…" oninput="renderMonitors()"><select id="status-filter" aria-label="Filter monitors by status" onchange="renderMonitors()"><option value="ALL">All statuses</option><option>UNKNOWN</option><option>UP</option><option>DEGRADED</option><option>DOWN</option><option>TIMEOUT</option><option>ERROR</option><option>PAUSED</option></select></div></div>
-    <div class="scroll"><table><thead><tr><th>Name</th><th>Endpoint</th><th>Status</th><th>Latency</th><th>Actions</th></tr></thead><tbody id="rows"></tbody></table></div>
-    <h2>Incidents</h2><div id="incidents"></div>
-    <section id="detail" hidden aria-live="polite"></section>
+    <nav class="view-nav" aria-label="Dashboard sections">
+      <button class="secondary active" data-view="overview" onclick="showView('overview')">Overview</button>
+      <button class="secondary" data-view="monitors" onclick="showView('monitors')">Monitors</button>
+      <button class="secondary" data-view="history" onclick="showView('history')">Monitor history</button>
+      <button class="secondary" data-view="incidents" onclick="showView('incidents')">Incidents <span id="incident-nav-count">0</span></button>
+    </nav>
+    <section id="view-overview" class="dashboard-view">
+      <div class="cards" aria-live="polite"><div class="card"><span>Total monitors</span><strong id="stat-total">0</strong></div><div class="card"><span>Up</span><strong id="stat-up">0</strong></div><div class="card"><span>Degraded</span><strong id="stat-degraded">0</strong></div><div class="card"><span>Down</span><strong id="stat-down">0</strong></div><div class="card"><span>Open incidents</span><strong id="stat-incidents">0</strong></div></div>
+      <h2>Add a monitor</h2>
+      <p class="muted">Start with a public endpoint. SentinelAPI will check it on the selected default schedule.</p>
+      <form id="add-monitor-form" onsubmit="add(event)">
+        <label class="edit-field" for="monitor-name">Monitor name<input id="monitor-name" placeholder="e.g. Production API" autocomplete="off" required maxlength="100"></label>
+        <label class="edit-field" for="monitor-url">Endpoint URL<input id="monitor-url" type="url" placeholder="https://api.example.com/health" autocomplete="url" required maxlength="2048"></label>
+        <button id="add-button" type="submit">Add monitor</button>
+      </form>
+      <p id="create-error" class="form-error" role="alert" hidden></p>
+      <p class="muted">Use a full public HTTP(S) address, for example <code>https://example.org/</code>. Do not include login credentials. Local, private, and metadata addresses are blocked.</p>
+    </section>
+    <section id="view-monitors" class="dashboard-view" hidden>
+      <div class="toolbar"><h2>All monitors</h2><div class="filters"><input id="monitor-search" type="search" aria-label="Search monitors by name or URL" placeholder="Search monitors…" oninput="renderMonitors()"><select id="status-filter" aria-label="Filter monitors by status" onchange="renderMonitors()"><option value="ALL">All statuses</option><option>UNKNOWN</option><option>UP</option><option>DEGRADED</option><option>DOWN</option><option>TIMEOUT</option><option>ERROR</option><option>PAUSED</option></select></div></div>
+      <div class="scroll"><table><thead><tr><th>Name</th><th>Endpoint</th><th>Status</th><th>Latency</th><th>Actions</th></tr></thead><tbody id="rows"></tbody></table></div>
+    </section>
+    <section id="view-history" class="dashboard-view" hidden>
+      <div class="toolbar"><div class="toolbar-copy"><h2>Monitor history</h2><p class="muted">Review check results, response time, and API test cases for a monitor.</p></div><label class="history-picker">Select monitor<select id="history-monitor" aria-label="Select a monitor to view history" onchange="selectMonitorHistory(this.value)"><option value="">Choose a monitor…</option></select></label></div>
+      <p id="history-empty" class="empty">Choose a monitor above to view its check history.</p>
+      <section id="detail" hidden aria-live="polite"></section>
+    </section>
+    <section id="view-incidents" class="dashboard-view" hidden>
+      <div class="toolbar"><div class="toolbar-copy"><h2>Incidents</h2><p class="muted">Investigate and resolve monitor issues.</p></div></div>
+      <div id="incidents"></div>
+    </section>
   </section>
   <dialog id="monitor-dialog" aria-labelledby="edit-title">
     <form id="edit-form" onsubmit="saveMonitor(event)">
@@ -125,6 +143,31 @@
     }
     const esc = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
     const date = value => value ? new Date(value).toLocaleString() : '—';
+    function showView(name) {
+      ['overview', 'monitors', 'history', 'incidents'].forEach(view => {
+        byId('view-' + view).hidden = view !== name;
+        const button = document.querySelector('.view-nav [data-view="' + view + '"]');
+        button.classList.toggle('active', view === name);
+        button.setAttribute('aria-current', view === name ? 'page' : 'false');
+      });
+    }
+    function updateHistoryPicker() {
+      const picker = byId('history-monitor'), selected = picker.value;
+      picker.innerHTML = '<option value="">Choose a monitor…</option>' + monitorCache.map(m => '<option value="' + esc(m.id) + '">' + esc(m.name) + '</option>').join('');
+      picker.value = monitorCache.some(m => m.id === selected) ? selected : '';
+      if (!picker.value) {
+        byId('detail').hidden = true;
+        byId('history-empty').hidden = false;
+      }
+    }
+    function selectMonitorHistory(id) {
+      if (!id) {
+        byId('detail').hidden = true;
+        byId('history-empty').hidden = false;
+        return;
+      }
+      showDetail(id);
+    }
 
     async function auth(mode, event) {
       if (event) event.preventDefault();
@@ -133,7 +176,7 @@
       try {
         if (mode === 'register') await req('/auth/register', 'POST', {email: byId('email').value.trim(), password: byId('password').value});
         await req('/auth/login', 'POST', {email: byId('email').value.trim(), password: byId('password').value});
-        byId('password').value = ''; byId('auth-panel').hidden = true; byId('main').hidden = false; byId('msg').textContent = 'Signed in'; await load();
+        byId('password').value = ''; byId('auth-panel').hidden = true; byId('main').hidden = false; showView('overview'); byId('msg').textContent = 'Signed in'; await load();
       } catch (error) { byId('msg').textContent = error.message; }
       finally { loginButton.disabled = false; registerButton.disabled = false; }
     }
@@ -205,7 +248,7 @@
     async function deleteMonitor(id) {
       const monitor = monitorCache.find(item => item.id === id); if (!monitor) return;
       if (!window.confirm('Delete “' + monitor.name + '” and its check history?')) return;
-      try { await req('/monitors/' + id, 'DELETE'); byId('detail').hidden = true; await load(); byId('msg').textContent = 'Monitor deleted'; }
+      try { await req('/monitors/' + id, 'DELETE'); byId('detail').hidden = true; await load(); showView('monitors'); byId('msg').textContent = 'Monitor deleted'; }
       catch (error) { byId('msg').textContent = error.message; }
     }
     async function incidentAction(id, action) {
@@ -221,9 +264,12 @@
         byId('stat-total').textContent = monitorCache.length;
         byId('stat-up').textContent = count('UP'); byId('stat-degraded').textContent = count('DEGRADED');
         byId('stat-down').textContent = count('DOWN') + count('TIMEOUT') + count('ERROR');
+        updateHistoryPicker();
         renderMonitors();
         const incidentsData = await req('/incidents');
-        byId('stat-incidents').textContent = incidentsData.items.filter(i => i.status === 'OPEN').length;
+        const openIncidents = incidentsData.items.filter(i => i.status === 'OPEN').length;
+        byId('stat-incidents').textContent = openIncidents;
+        byId('incident-nav-count').textContent = openIncidents;
         byId('incidents').innerHTML = incidentsData.items.map(i => '<article><strong>' + esc(i.title) + '</strong> <span class="badge">' + esc(i.status) + '</span><p>' + esc(i.summary) + '</p><small>Opened ' + date(i.opened_at) + '</small><div class="actions">' + (i.status === 'OPEN' ? '<button class="secondary" onclick="incidentAction(\'' + i.id + '\',\'acknowledge\')">Acknowledge</button>' : '') + (['OPEN','ACKNOWLEDGED'].includes(i.status) ? '<button class="secondary" onclick="incidentAction(\'' + i.id + '\',\'resolve\')">Resolve</button>' : '') + '</div></article>').join('') || '<p class="empty">All clear — no incidents.</p>';
         byId('msg').textContent = 'Updated just now';
       } catch (error) { byId('msg').textContent = error.message; }
@@ -239,19 +285,22 @@
     async function logout() {
       try { await req('/auth/logout', 'POST'); } catch (_) {}
       monitorCache = [];
-      byId('main').hidden = true; byId('auth-panel').hidden = false; byId('msg').textContent = 'Signed out';
+      byId('main').hidden = true; byId('auth-panel').hidden = false; showView('overview'); byId('msg').textContent = 'Signed out';
       byId('rows').innerHTML = ''; byId('incidents').innerHTML = '';
     }
     async function showDetail(id) {
+      showView('history');
+      byId('history-monitor').value = id;
+      byId('history-empty').hidden = true;
       const panel = document.getElementById('detail'); panel.hidden = false; panel.innerHTML = '<p class="muted">Loading check history…</p>';
       try {
         const pair = await Promise.all([req('/monitors/' + id), req('/monitors/' + id + '/results?limit=100'), req('/monitors/' + id + '/test-cases')]);
         const monitor = pair[0], items = pair[1].items, cases = pair[2].items;
         const historyRows = items.map(item => '<tr><td>' + date(item.checked_at) + '</td><td><span class="badge ' + esc(item.outcome.toLowerCase()) + '">' + esc(item.outcome) + '</span></td><td>' + (item.http_status ?? '—') + '</td><td>' + (item.latency_ms ?? '—') + ' ms</td><td>' + esc(item.error_message || item.error_type || '—') + '</td></tr>').join('');
-        panel.innerHTML = '<button onclick="document.getElementById(\'detail\').hidden=true">← Back to overview</button><h2>' + esc(monitor.name) + '</h2><p class="muted">' + esc(monitor.url.split('?')[0]) + '</p><div class="summary"><span>Current state<strong>' + esc(monitor.last_status || 'UNKNOWN') + '</strong></span><span>Last latency<strong>' + (monitor.last_latency_ms ?? '—') + ' ms</strong></span><span>Checks shown<strong>' + items.length + '</strong></span></div><h3>Response time</h3><div class="chart">' + latencyChart(items) + '</div><h3>Recent monitor checks</h3>' + (items.length ? '<div class="scroll"><table><thead><tr><th>Checked</th><th>Outcome</th><th>HTTP</th><th>Latency</th><th>Failure details</th></tr></thead><tbody>' + historyRows + '</tbody></table></div>' : '<p class="muted">No checks recorded yet. Run a check to start collecting history.</p>') + '<div class="toolbar"><h3>API test cases (' + cases.length + ')</h3><button onclick="openCaseForm(\'' + monitor.id + '\')">Add test case</button></div><div id="case-list">' + renderCases(cases) + '</div><div id="case-history"></div>';
+        panel.innerHTML = '<button class="secondary" onclick="showView(\'monitors\')">← Back to monitors</button><h2>' + esc(monitor.name) + '</h2><p class="muted">' + esc(monitor.url.split('?')[0]) + '</p><div class="summary"><span>Current state<strong>' + esc(monitor.last_status || 'UNKNOWN') + '</strong></span><span>Last latency<strong>' + (monitor.last_latency_ms ?? '—') + ' ms</strong></span><span>Checks shown<strong>' + items.length + '</strong></span></div><h3>Response time</h3><div class="chart">' + latencyChart(items) + '</div><h3>Recent monitor checks</h3>' + (items.length ? '<div class="scroll"><table><thead><tr><th>Checked</th><th>Outcome</th><th>HTTP</th><th>Latency</th><th>Failure details</th></tr></thead><tbody>' + historyRows + '</tbody></table></div>' : '<p class="muted">No checks recorded yet. Run a check to start collecting history.</p>') + '<div class="toolbar"><h3>API test cases (' + cases.length + ')</h3><button onclick="openCaseForm(\'' + monitor.id + '\')">Add test case</button></div><div id="case-list">' + renderCases(cases) + '</div><div id="case-history"></div>';
         byId('case-list').dataset.cases = JSON.stringify(cases);
       } catch (error) {
-        panel.innerHTML = '<button onclick="document.getElementById(\'detail\').hidden=true">← Back to overview</button><p role="alert">' + esc(error.message) + '</p>';
+        panel.innerHTML = '<button class="secondary" onclick="showView(\'monitors\')">← Back to monitors</button><p role="alert">' + esc(error.message) + '</p>';
       }
     }
     function renderCases(cases) {
@@ -338,7 +387,7 @@
       const dots = coords.map((point, index) => '<circle cx="' + point[0] + '" cy="' + point[1] + '" r="4" fill="' + (points[index].outcome === 'UP' ? '#34d399' : points[index].outcome === 'DEGRADED' ? '#fbbf24' : '#fb7185') + '"><title>' + esc(points[index].outcome) + ' · ' + points[index].latency_ms + ' ms · ' + date(points[index].checked_at) + '</title></circle>').join('');
       return '<svg viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="Check response time trend"><line x1="' + pad + '" y1="' + (height - pad) + '" x2="' + (width - pad) + '" y2="' + (height - pad) + '" stroke="#40516b"/><polyline points="' + line + '" fill="none" stroke="#60a5fa" stroke-width="3"/>' + dots + '</svg><small class="muted">Oldest shown ← · latency scale 0–' + max.toFixed(0) + ' ms · → newest</small>';
     }
-    req('/monitors').then(() => { byId('auth-panel').hidden = true; byId('main').hidden = false; load(); }).catch(() => { byId('auth-panel').hidden = false; byId('main').hidden = true; });
+    req('/monitors').then(() => { byId('auth-panel').hidden = true; byId('main').hidden = false; showView('overview'); load(); }).catch(() => { byId('auth-panel').hidden = false; byId('main').hidden = true; });
   </script>
 </body>
 </html>
