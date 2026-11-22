@@ -84,7 +84,7 @@ The SQLite database is created on first app startup. To use a different path, se
 4. Select **Check now** and review the status and response time.
 5. Select the monitor name to view recent checks, failure details, and the latency trend.
 6. In the monitor detail view, add a test case with its method, expected status, optional JSON assertions, headers, and body. A chain can extract JSON values and pass them into later steps. Write methods require confirmation and a second opt-in before they can run on schedule.
-7. Incidents appear below the monitor list. API calls require the bearer token returned by `/api/v1/auth/login`.
+7. Incidents appear below the monitor list. Login sets an HttpOnly session cookie that expires after 12 hours; sign out revokes the session. API clients should retain and send the cookie securely.
 
 The application rejects credentials in URLs and targets that resolve to local, private, reserved, or metadata IP addresses. Redirects are disabled. The scheduler checks active monitors at their configured interval; the minimum interval defaults to 60 seconds.
 
@@ -124,6 +124,6 @@ The helper tests import the app, so they require the dependencies in `requiremen
 - **Grafana:** local metrics dashboard is configured through Prometheus. Its panels show aggregate metrics, not the full SQLite check history.
 - **PostgreSQL:** not used by the current app. Add PostgreSQL support and migrations only if managed/shared persistence is needed.
 - **AWS:** not deployed. A real deployment needs AWS account access, a private RDS database, an EC2 instance or other compute, IAM roles, secret injection, TLS, and CloudWatch configuration. Keep the database private and restrict outbound traffic from the checker.
-- **Production readiness:** add login and manual-check rate limits, session expiry, stronger SSRF controls such as controlled egress, and a dedicated scheduler/worker before exposing the service publicly.
+- **Production readiness:** enable HTTPS/TLS and the Secure cookie flag, add login and manual-check rate limits, email verification, stronger SSRF controls such as controlled egress, and a dedicated scheduler/worker before exposing the service publicly.
 
 For implementation status and known issues, see [IMPLEMENTATION_REPORT.md](IMPLEMENTATION_REPORT.md). For planned follow-up work, see [POST_MVP_BACKLOG.md](POST_MVP_BACKLOG.md).

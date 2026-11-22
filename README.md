@@ -45,7 +45,7 @@ This is an extensible scenario runner, not a universal API test language. It cur
 
 ## Configuration and security
 
-See `.env.example`. Configure sensitive values using `SENTINEL_SECRET_*` environment variables (Docker Compose reads the project `.env`; local shell runs need exported values). The application uses a random opaque bearer session token and PBKDF2 password hashes. Monitor targets must resolve exclusively to globally routable addresses; private, loopback, reserved and metadata addresses are rejected and redirects are disabled. Use HTTPS behind a reverse proxy for any shared deployment; this local MVP has no login throttling, CSRF surface is limited to bearer-authenticated API calls, and sessions have no expiry/revocation endpoint. DNS rebinding protection requires an egress proxy/network policy in production.
+See `.env.example`. Configure sensitive values using `SENTINEL_SECRET_*` environment variables (Docker Compose reads the project `.env`; local shell runs need exported values). Passwords are stored as salted PBKDF2-SHA256 hashes (never encrypted or recoverable). Browser login uses a 12-hour HttpOnly, SameSite=Strict session cookie; only a SHA-256 digest of the session token is stored in SQLite. Production mode sets the cookie's Secure flag; serve the app behind HTTPS/TLS so credentials and session cookies are encrypted in transit. Set `SESSION_COOKIE_SECURE=true` when TLS terminates at a proxy but `APP_ENV` is not `production`. Sign-out revokes the current session. Monitor targets must resolve exclusively to globally routable addresses; private, loopback, reserved and metadata addresses are rejected and redirects are disabled. Login throttling, email verification, and DNS rebinding protection via an egress proxy/network policy remain deployment hardening needs.
 
 ## AWS status
 
@@ -57,6 +57,6 @@ No AWS deployment was performed. The brief's EC2/RDS/IAM/Secrets Manager/CloudWa
 - One in-process scheduler runs per application process, does not use a distributed lock, and has no concurrency/rate cap beyond per-monitor overlap prevention.
 - Incident opening uses two consecutive availability failures; recovery is on the next successful result. Latency degradation does not currently open incidents.
 - SNS and Bedrock are not implemented. AI is disabled/not available.
-- Login/manual-check rate limits, session expiry, email verification, and deployment hardening remain backlog items.
+- Login/manual-check rate limits, email verification, and deployment hardening remain backlog items.
 
 See `docs/POST_MVP_BACKLOG.md` and `docs/IMPLEMENTATION_REPORT.md` for the detailed review.

@@ -19,8 +19,9 @@
   <p class="muted">API availability monitoring</p>
   <section>
     <h2>Sign in / Register</h2>
-    <input id="email" type="email" placeholder="Email" autocomplete="email">
-    <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+    <label class="edit-field">Email<input id="email" type="email" placeholder="you@example.com" autocomplete="email" required maxlength="254"></label>
+    <label class="edit-field">Password<input id="password" type="password" placeholder="At least 10 characters" autocomplete="current-password" required minlength="10" maxlength="128"></label>
+    <small class="muted">Passwords are stored as one-way salted hashes. Sign-in uses a protected session cookie.</small><br>
     <button id="login-button" onclick="auth('login')">Sign in</button>
     <button class="secondary" id="register-button" onclick="auth('register')">Create account</button>
     <span id="msg" role="status"></span>
@@ -83,14 +84,13 @@
     </form>
   </dialog>
   <script>
-    let token = localStorage.getItem('token');
     let monitorCache = [];
     let busyChecks = new Set();
     const byId = id => document.getElementById(id);
     const req = async (path, method, data) => {
       const response = await fetch('/api/v1' + path, {
         method: method || 'GET',
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token},
+        headers: {'Content-Type': 'application/json'},
         body: data ? JSON.stringify(data) : undefined
       });
       const body = await response.json().catch(() => ({}));
@@ -111,11 +111,11 @@
 
     async function auth(mode) {
       const loginButton = byId('login-button'), registerButton = byId('register-button');
-      loginButton.disabled = true; registerButton.disabled = true; byId('msg').textContent = 'Signing in…';
+      loginButton.disabled = true; registerButton.disabled = true; byId('msg').textContent = mode === 'register' ? 'Creating account…' : 'Signing in…';
       try {
         if (mode === 'register') await req('/auth/register', 'POST', {email: byId('email').value.trim(), password: byId('password').value});
-        const result = await req('/auth/login', 'POST', {email: byId('email').value.trim(), password: byId('password').value});
-        token = result.access_token; localStorage.setItem('token', token); byId('main').hidden = false; byId('msg').textContent = 'Signed in'; await load();
+        await req('/auth/login', 'POST', {email: byId('email').value.trim(), password: byId('password').value});
+        byId('password').value = ''; byId('main').hidden = false; byId('msg').textContent = 'Signed in'; await load();
       } catch (error) { byId('msg').textContent = error.message; }
       finally { loginButton.disabled = false; registerButton.disabled = false; }
     }
@@ -218,8 +218,9 @@
       });
       byId('rows').innerHTML = filtered.map(m => { const current = m.is_active ? (m.last_status || 'UNKNOWN') : 'PAUSED'; return '<tr><td><button class="link" onclick="showDetail(\'' + m.id + '\')">' + esc(m.name) + '</button></td><td>' + esc(m.url.split('?')[0]) + '</td><td><span class="badge ' + esc(current.toLowerCase()) + '">' + esc(current) + '</span></td><td>' + (m.last_latency_ms ?? '—') + ' ms</td><td><button ' + (!m.is_active || busyChecks.has(m.id) ? 'disabled' : '') + ' onclick="check(\'' + m.id + '\')">' + (!m.is_active ? 'Paused' : busyChecks.has(m.id) ? 'Checking…' : 'Check now') + '</button><button class="secondary" onclick="editMonitor(\'' + m.id + '\')">Edit</button><button class="secondary" onclick="toggleMonitor(\'' + m.id + '\')">' + (m.is_active ? 'Pause' : 'Resume') + '</button><button class="secondary" onclick="deleteMonitor(\'' + m.id + '\')">Delete</button></td></tr>'; }).join('') || '<tr><td colspan="5" class="empty">' + (monitorCache.length ? 'No monitors match these filters.' : 'No monitors yet. Add a public endpoint above to begin.') + '</td></tr>';
     }
-    function logout() {
-      localStorage.removeItem('token'); token = null; monitorCache = [];
+    async function logout() {
+      try { await req('/auth/logout', 'POST'); } catch (_) {}
+      monitorCache = [];
       byId('main').hidden = true; byId('msg').textContent = 'Signed out';
       byId('rows').innerHTML = ''; byId('incidents').innerHTML = '';
     }
@@ -319,7 +320,7 @@
       const dots = coords.map((point, index) => '<circle cx="' + point[0] + '" cy="' + point[1] + '" r="4" fill="' + (points[index].outcome === 'UP' ? '#34d399' : points[index].outcome === 'DEGRADED' ? '#fbbf24' : '#fb7185') + '"><title>' + esc(points[index].outcome) + ' · ' + points[index].latency_ms + ' ms · ' + date(points[index].checked_at) + '</title></circle>').join('');
       return '<svg viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="Check response time trend"><line x1="' + pad + '" y1="' + (height - pad) + '" x2="' + (width - pad) + '" y2="' + (height - pad) + '" stroke="#40516b"/><polyline points="' + line + '" fill="none" stroke="#60a5fa" stroke-width="3"/>' + dots + '</svg><small class="muted">Oldest shown ← · latency scale 0–' + max.toFixed(0) + ' ms · → newest</small>';
     }
-    if (token) { byId('main').hidden = false; load(); }
+    req('/monitors').then(() => { byId('main').hidden = false; load(); }).catch(() => { byId('main').hidden = true; });
   </script>
 </body>
 </html>

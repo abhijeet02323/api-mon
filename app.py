@@ -10,7 +10,7 @@ import socket
 import sqlite3
 import time
 from contextlib import asynccontextmanager, contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
 from urllib.parse import parse_qsl, urlsplit
 from uuid import uuid4
@@ -18,7 +18,7 @@ from uuid import uuid4
 from assertions import assertion_passes, json_path_value, validate_json_path
 from scenario_utils import ScenarioConfigError, resolve_scenario_text, validate_extractions, validate_headers
 import httpx
-from fastapi import Depends, FastAPI, Header, HTTPException, Response
+from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Response
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -32,6 +32,9 @@ MAX_REQUEST_BODY_BYTES = 32768
 MAX_CASES_PER_MONITOR = 25
 MAX_CHAIN_STEPS = 10
 CASE_SEMAPHORE = asyncio.Semaphore(10)
+PASSWORD_ITERATIONS = 600_000
+SESSION_TTL = timedelta(hours=12)
+SESSION_COOKIE = "sentinel_session"
 
 
 class ResponseLimitError(Exception):
@@ -61,7 +64,7 @@ def init_db():
     with db() as c:
         c.executescript("""
         CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,email TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL,created_at TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,created_at TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,created_at TEXT NOT NULL,expires_at TEXT);
         CREATE TABLE IF NOT EXISTS monitors(id TEXT PRIMARY KEY,owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,name TEXT NOT NULL,url TEXT NOT NULL,interval_seconds INTEGER NOT NULL,timeout_seconds INTEGER NOT NULL,expected_status INTEGER NOT NULL,latency_threshold_ms INTEGER,is_active INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,last_checked_at TEXT,last_status TEXT,last_latency_ms REAL);
         CREATE INDEX IF NOT EXISTS idx_monitors_owner ON monitors(owner_id);
         CREATE TABLE IF NOT EXISTS results(id TEXT PRIMARY KEY,monitor_id TEXT NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,checked_at TEXT NOT NULL,outcome TEXT NOT NULL,http_status INTEGER,latency_ms REAL,error_type TEXT,error_message TEXT);
@@ -74,6 +77,10 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_case_results_case_time ON test_case_results(test_case_id,checked_at DESC);
         """)
         case_columns = {row[1] for row in c.execute("PRAGMA table_info(test_cases)")}
+        session_columns = {row[1] for row in c.execute("PRAGMA table_info(sessions)")}
+        if "expires_at" not in session_columns:
+            c.execute("ALTER TABLE sessions ADD COLUMN expires_at TEXT")
+        c.execute("UPDATE sessions SET expires_at=? WHERE expires_at IS NULL", ((datetime.fromisoformat(now()) + SESSION_TTL).isoformat(),))
         for name, declaration in (("method", "TEXT NOT NULL DEFAULT 'GET'"), ("request_body", "TEXT"), ("headers_json", "TEXT NOT NULL DEFAULT '{}'"), ("steps_json", "TEXT NOT NULL DEFAULT '[]'"), ("allow_mutation", "INTEGER NOT NULL DEFAULT 0"), ("schedule_mutations", "INTEGER NOT NULL DEFAULT 0"), ("extract_json", "TEXT NOT NULL DEFAULT '{}'")):
             if name not in case_columns:
                 c.execute(f"ALTER TABLE test_cases ADD COLUMN {name} {declaration}")
@@ -84,14 +91,35 @@ def init_db():
 
 def hash_password(pw):
     salt = secrets.token_bytes(16)
-    digest = hashlib.pbkdf2_hmac("sha256", pw.encode(), salt, 310000)
-    return salt.hex() + ":" + digest.hex()
+    digest = hashlib.pbkdf2_hmac("sha256", pw.encode(), salt, PASSWORD_ITERATIONS)
+    return f"pbkdf2_sha256${PASSWORD_ITERATIONS}${salt.hex()}${digest.hex()}"
 
 
 def verify_password(pw, saved):
-    salt, expected = saved.split(":", 1)
-    actual = hashlib.pbkdf2_hmac("sha256", pw.encode(), bytes.fromhex(salt), 310000).hex()
-    return hmac.compare_digest(actual, expected)
+    try:
+        if saved.startswith("pbkdf2_sha256$"):
+            _, rounds, salt, expected = saved.split("$", 3)
+            rounds = int(rounds)
+        else:  # Verify and upgrade hashes from the original MVP format.
+            salt, expected = saved.split(":", 1)
+            rounds = 310_000
+        if rounds < 100_000 or rounds > 2_000_000:
+            return False
+        actual = hashlib.pbkdf2_hmac("sha256", pw.encode(), bytes.fromhex(salt), rounds).hex()
+        return hmac.compare_digest(actual, expected)
+    except (ValueError, TypeError):
+        return False
+
+
+def session_digest(token):
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def session_cookie_secure():
+    return os.getenv("SESSION_COOKIE_SECURE", "").lower() in {"1", "true", "yes"} or os.getenv("APP_ENV", "development").lower() == "production"
+
+
+DUMMY_PASSWORD_HASH = hash_password("sentinel-invalid-login")
 
 
 def safe_url(url):
@@ -258,13 +286,17 @@ async def lifespan(app):
 app = FastAPI(title="SentinelAPI", version="1.0.0", lifespan=lifespan)
 
 
-def current_user(authorization: str | None = Header(default=None)):
-    if not authorization or not authorization.startswith("Bearer "):
+def current_user(authorization: str | None = Header(default=None), session_cookie: str | None = Cookie(default=None, alias=SESSION_COOKIE)):
+    token = session_cookie or (authorization[7:] if authorization and authorization.startswith("Bearer ") else None)
+    if not token:
         raise HTTPException(401, "Authentication required")
     with db() as c:
-        row = c.execute("SELECT user_id FROM sessions WHERE token=?", (authorization[7:],)).fetchone()
+        row = c.execute("SELECT user_id FROM sessions WHERE token=? AND expires_at>?", (session_digest(token), now())).fetchone()
+        if not row and authorization and authorization.startswith("Bearer "):
+            # Keep existing bearer tokens working during the session-table migration.
+            row = c.execute("SELECT user_id FROM sessions WHERE token=? AND expires_at>?", (token, now())).fetchone()
     if not row:
-        raise HTTPException(401, "Invalid session")
+        raise HTTPException(401, "Session expired or invalid. Sign in again.")
     return row["user_id"]
 
 
@@ -307,7 +339,7 @@ def ready():
 @app.post("/api/v1/auth/register", status_code=201)
 def register(data: Credentials):
     email = data.email.strip().lower()
-    if "@" not in email:
+    if len(email) > 254 or email.count("@") != 1 or not all(email.split("@")) or any(ch.isspace() for ch in email):
         raise HTTPException(422, "Enter a valid email")
     try:
         with db() as c:
@@ -318,14 +350,32 @@ def register(data: Credentials):
 
 
 @app.post("/api/v1/auth/login")
-def login(data: Credentials):
+def login(data: Credentials, response: Response):
     with db() as c:
+        c.execute("DELETE FROM sessions WHERE expires_at<=?", (now(),))
         user = c.execute("SELECT * FROM users WHERE email=?", (data.email.strip().lower(),)).fetchone()
-        if not user or not verify_password(data.password, user["password_hash"]):
+        password_ok = verify_password(data.password, user["password_hash"]) if user else verify_password(data.password, DUMMY_PASSWORD_HASH)
+        if not user or not password_ok:
             raise HTTPException(401, "Invalid email or password")
+        if not user["password_hash"].startswith("pbkdf2_sha256$"):
+            c.execute("UPDATE users SET password_hash=? WHERE id=?", (hash_password(data.password), user["id"]))
         token = secrets.token_urlsafe(32)
-        c.execute("INSERT INTO sessions VALUES(?,?,?)", (token, user["id"], now()))
-    return {"access_token": token, "token_type": "bearer"}
+        expires = (datetime.now(timezone.utc) + SESSION_TTL).isoformat()
+        c.execute("INSERT INTO sessions(token,user_id,created_at,expires_at) VALUES(?,?,?,?)", (session_digest(token), user["id"], now(), expires))
+    response.set_cookie(SESSION_COOKIE, token, max_age=int(SESSION_TTL.total_seconds()), httponly=True, secure=session_cookie_secure(), samesite="strict", path="/")
+    response.headers["Cache-Control"] = "no-store"
+    return {"authenticated": True, "expires_at": expires}
+
+
+@app.post("/api/v1/auth/logout", status_code=204)
+def logout(response: Response, uid=Depends(current_user), authorization: str | None = Header(default=None), session_cookie: str | None = Cookie(default=None, alias=SESSION_COOKIE)):
+    token = session_cookie or (authorization[7:] if authorization and authorization.startswith("Bearer ") else None)
+    if token:
+        with db() as c:
+            c.execute("DELETE FROM sessions WHERE token IN (?,?)", (session_digest(token), token))
+    response.delete_cookie(SESSION_COOKIE, path="/", secure=session_cookie_secure(), httponly=True, samesite="strict")
+    response.status_code = 204
+    return response
 
 
 @app.get("/api/v1/monitors")
