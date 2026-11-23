@@ -152,12 +152,16 @@
     .view-nav button.active{background:var(--green-deep);border-color:var(--green-accent);color:var(--green-primary)}.view-nav button.active span.nav-icon{background:var(--green-accent);color:var(--tone-0)}
     .badge.up{background:var(--green-deep);border-color:var(--green-accent);color:var(--green-primary)}.health-indicator.up{background:var(--green-primary);outline:1px solid var(--green-accent);box-shadow:none}.success{background:var(--green-deep);border-color:var(--green-accent);color:var(--green-primary)}
     .dashboard-view .chart polyline{stroke:var(--green-primary)}.ai-mark,.chat-welcome-icon{background:var(--green-deep);color:var(--green-primary)}.chat-suggestions button:hover{border-color:var(--green-accent)}
+    #view-overview .overview-panel{background:var(--tone-0);border-color:var(--tone-6);box-shadow:inset 0 1px 0 var(--tone-3)}#view-overview .panel-head h3{color:var(--tone-11)}#view-overview .panel-head .muted{color:var(--tone-8)}
+    #view-overview .overview-monitor{margin:6px 0;padding:14px 12px;border:1px solid var(--tone-4);border-radius:11px;background:var(--tone-1)}#view-overview .overview-monitor:last-child{border-bottom:1px solid var(--tone-4)}#view-overview .overview-monitor-name .link{color:var(--tone-11);text-decoration-color:var(--tone-7)}#view-overview .overview-monitor-name small,#view-overview .overview-last-check{color:var(--tone-8)}
+    #view-overview>h2{margin-top:30px;padding-left:12px;border-left:3px solid var(--green-accent);color:var(--tone-11)}#view-overview #add-monitor-form{background:var(--tone-0);border-color:var(--tone-6);box-shadow:inset 0 1px 0 var(--tone-3)}#view-overview #add-monitor-form .edit-field{color:var(--tone-10)}#view-overview #add-monitor-form input{background:var(--tone-2);border-color:var(--tone-6);color:var(--tone-11)}#view-overview #add-monitor-form input::placeholder{color:var(--tone-7)}#view-overview #add-monitor-form input:focus{border-color:var(--green-primary)}
+    a.sidebar-brand{color:inherit;text-decoration:none}
   </style>
 </head>
 <body>
   <header class="app-header">
     <div><p class="eyebrow">API OBSERVABILITY</p><h1>SentinelAPI</h1><p class="muted">Know when your APIs slow down or go offline.</p></div>
-    <span class="live-label"><i></i> Monitoring console</span>
+    <a class="live-label" href="/" aria-label="Return to SentinelAPI home"><i></i> Product home</a>
   </header>
   <section id="auth-panel">
     <h2>Welcome back</h2>
@@ -173,7 +177,7 @@
   <span id="msg" role="status" aria-live="polite"></span>
   <section id="main" class="dashboard-shell" hidden>
     <aside class="dashboard-sidebar">
-      <div class="sidebar-brand"><span class="brand-mark" aria-hidden="true">S</span><span><strong>SentinelAPI</strong><small>MONITORING</small></span></div>
+      <a class="sidebar-brand" href="/" aria-label="SentinelAPI home"><span class="brand-mark" aria-hidden="true">S</span><span><strong>SentinelAPI</strong><small>MONITORING</small></span></a>
       <p class="sidebar-label">WORKSPACE</p>
       <nav class="view-nav" aria-label="Dashboard sections">
         <button class="secondary active" data-view="overview" onclick="showView('overview')"><span class="nav-icon" aria-hidden="true">◫</span>Overview</button>

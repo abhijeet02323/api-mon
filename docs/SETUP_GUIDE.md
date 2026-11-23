@@ -70,7 +70,8 @@ python -m uvicorn app:app --reload
 
 Then open:
 
-- Dashboard: <http://localhost:8000>
+- Product home page: <http://localhost:8000>
+- Monitoring dashboard: <http://localhost:8000/dashboard>
 - Interactive API docs: <http://localhost:8000/docs>
 - Liveness: <http://localhost:8000/health>
 - Database readiness: <http://localhost:8000/ready>

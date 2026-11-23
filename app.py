@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import ipaddress
 import json
+import logging
 import os
 from pathlib import Path
 import secrets
@@ -42,6 +43,7 @@ CASE_SEMAPHORE = asyncio.Semaphore(10)
 PASSWORD_ITERATIONS = 600_000
 SESSION_TTL = timedelta(hours=12)
 SESSION_COOKIE = "sentinel_session"
+LOGGER = logging.getLogger("sentinelapi")
 
 
 class ResponseLimitError(Exception):
@@ -989,7 +991,7 @@ async def scheduler():
                 if due and not LOCKS.get(m["id"], asyncio.Lock()).locked():
                     asyncio.create_task(run_monitor_suite(m))
         except Exception:
-            pass
+            LOGGER.exception("Monitor scheduler iteration failed")
         await asyncio.sleep(5)
 
 
@@ -1024,6 +1026,12 @@ def metrics():
 
 
 @app.get("/", response_class=HTMLResponse)
+def home_page_ui():
+    page = Path(__file__).with_name("home.html").read_text(encoding="utf-8")
+    return HTMLResponse(page)
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
 def dashboard_detail_ui():
     page = Path(__file__).with_name("dashboard.html").read_text(encoding="utf-8")
     return HTMLResponse(page)
