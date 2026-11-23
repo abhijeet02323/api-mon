@@ -21,7 +21,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-The app is at port 8000, Grafana binds to localhost port 3000, and Prometheus is at localhost port 9090. Set a unique `GRAFANA_ADMIN_PASSWORD` before starting. Prometheus scrapes `/metrics`; Grafana provisions its Prometheus datasource and dashboard automatically. The dashboard shows monitor states, counts, incidents, and recorded latency summaries. Detailed check history remains available through SentinelAPI because Grafana does not query SQLite directly.
+The app is at port 8000, Grafana binds to localhost port 3000, and Prometheus is at localhost port 9090. Set a unique `GRAFANA_ADMIN_PASSWORD` before starting. Prometheus scrapes `/metrics`; Grafana provisions its Prometheus datasource and dashboard automatically. The dashboard shows monitor states, counts, incidents, recorded latency summaries, and a per-monitor response-time graph based on the latest check latency sampled at each Prometheus scrape. Detailed check history remains available through SentinelAPI because Grafana does not query SQLite directly.
 
 ## Scenario-based API tests
 

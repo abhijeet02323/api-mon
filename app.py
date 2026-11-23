@@ -997,6 +997,7 @@ async def scheduler():
 def metrics():
     with db() as c:
         counts = c.execute("SELECT last_status,COUNT(*) n FROM monitors GROUP BY last_status").fetchall()
+        monitor_latencies = c.execute("SELECT id,name,last_latency_ms FROM monitors WHERE last_latency_ms IS NOT NULL").fetchall()
         checks = c.execute("SELECT COUNT(*) FROM results").fetchone()[0]
         incidents = c.execute("SELECT COUNT(*) FROM incidents WHERE status='OPEN'").fetchone()[0]
         outcomes = c.execute("SELECT outcome,COUNT(*) n FROM results GROUP BY outcome").fetchall()
@@ -1008,6 +1009,16 @@ def metrics():
     lines.extend(f'sentinelapi_check_results_total{{outcome="{r["outcome"]}"}} {r["n"]}' for r in outcomes)
     lines.extend(f'sentinelapi_test_case_results_total{{outcome="{r["outcome"]}"}} {r["n"]}' for r in case_outcomes)
     lines.extend([f"sentinelapi_active_test_cases {active_cases}", f"sentinelapi_open_incidents {incidents}", f"sentinelapi_check_latency_avg_ms {latency['avg_ms'] or 0}", f"sentinelapi_check_latency_max_ms {latency['max_ms'] or 0}"])
+    lines.extend([
+        "# HELP sentinelapi_monitor_latency_ms Latest availability-check response time per monitor in milliseconds.",
+        "# TYPE sentinelapi_monitor_latency_ms gauge",
+    ])
+    for monitor in monitor_latencies:
+        monitor_id = "".join(char if char == "\n" or ord(char) >= 32 else " " for char in str(monitor["id"]))
+        monitor_name = "".join(char if char == "\n" or ord(char) >= 32 else " " for char in str(monitor["name"]))
+        monitor_id = monitor_id.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+        monitor_name = monitor_name.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+        lines.append(f'sentinelapi_monitor_latency_ms{{monitor_id="{monitor_id}",monitor="{monitor_name}"}} {monitor["last_latency_ms"]}')
     body = "\n".join(lines)
     return Response(body + "\n", media_type="text/plain; version=0.0.4")
 
