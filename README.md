@@ -120,7 +120,7 @@ The application loads `.env` for local runs. Docker Compose passes the project `
 | `BEDROCK_MODEL_ID` | Placeholder | For Nova Micro in the APAC region, use `apac.amazon.nova-micro-v1:0`. |
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` | Empty | Optional credentials; the standard AWS credential chain or IAM role can also be used. |
 
-## Optional Amazon Bedrock features
+## Amazon Bedrock features
 
 AI Assist and incident summaries use Amazon Nova Micro through Bedrock. Configure `AWS_REGION=ap-south-1` and `BEDROCK_MODEL_ID=apac.amazon.nova-micro-v1:0`, then provide AWS credentials through the standard credential chain or the environment variables above. Grant the app identity the permissions in [`iam/bedrock-nova-micro-invoke.json`](iam/bedrock-nova-micro-invoke.json). Without Bedrock configuration, the monitoring dashboard and API continue to work, but AI features are unavailable.
 
